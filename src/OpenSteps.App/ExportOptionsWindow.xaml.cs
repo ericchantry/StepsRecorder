@@ -25,6 +25,11 @@ public partial class ExportOptionsWindow : Window
             formats |= (int)GuideExportFormat.Html;
         }
 
+        if (PdfCheckBox.IsChecked == true)
+        {
+            formats |= (int)GuideExportFormat.Pdf;
+        }
+
         if (formats == 0)
         {
             System.Windows.MessageBox.Show("Choose at least one export file type.", "OpenSteps", MessageBoxButton.OK, MessageBoxImage.Information);

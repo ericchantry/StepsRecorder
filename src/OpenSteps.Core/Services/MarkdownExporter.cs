@@ -7,10 +7,12 @@ namespace OpenSteps.Core.Services;
 public sealed class MarkdownExporter
 {
     private readonly MarkdownBuilder _markdownBuilder;
+    private readonly PdfExporter _pdfExporter;
 
-    public MarkdownExporter(MarkdownBuilder? markdownBuilder = null)
+    public MarkdownExporter(MarkdownBuilder? markdownBuilder = null, PdfExporter? pdfExporter = null)
     {
         _markdownBuilder = markdownBuilder ?? new MarkdownBuilder();
+        _pdfExporter = pdfExporter ?? new PdfExporter();
     }
 
     public string GetUniqueExportFolder(string parentFolder, string sessionTitle)
@@ -83,6 +85,7 @@ public sealed class MarkdownExporter
         var outputPaths = new List<string>();
         var markdownPath = string.Empty;
         var htmlPath = string.Empty;
+        var pdfPath = string.Empty;
 
         if (formats.HasFlag(GuideExportFormat.Markdown))
         {
@@ -99,11 +102,44 @@ public sealed class MarkdownExporter
             outputPaths.Add(htmlPath);
         }
 
+        if (formats.HasFlag(GuideExportFormat.Pdf))
+        {
+            // The PDF is printed from the guide HTML. When HTML was not requested, the page is only a temporary file.
+            var sourceHtmlPath = string.IsNullOrEmpty(htmlPath) ? Path.Combine(exportFolder, "pdf-source.html") : htmlPath;
+            if (string.IsNullOrEmpty(htmlPath))
+            {
+                await File.WriteAllTextAsync(sourceHtmlPath, BuildHtml(session), cancellationToken);
+            }
+
+            try
+            {
+                var candidatePdfPath = Path.Combine(exportFolder, "guide.pdf");
+                var error = await _pdfExporter.ExportAsync(sourceHtmlPath, candidatePdfPath, cancellationToken);
+                if (error is null)
+                {
+                    pdfPath = candidatePdfPath;
+                    outputPaths.Add(pdfPath);
+                }
+                else
+                {
+                    warnings.Add($"PDF was not created: {error}");
+                }
+            }
+            finally
+            {
+                if (string.IsNullOrEmpty(htmlPath) && File.Exists(sourceHtmlPath))
+                {
+                    File.Delete(sourceHtmlPath);
+                }
+            }
+        }
+
         return new ExportResult
         {
             ExportFolder = exportFolder,
             MarkdownPath = markdownPath,
             HtmlPath = htmlPath,
+            PdfPath = pdfPath,
             OutputPaths = outputPaths,
             Warnings = warnings
         };
@@ -134,6 +170,7 @@ public sealed class MarkdownExporter
         html.AppendLine("h1{margin-top:0;font-size:32px} h2{margin-top:34px;border-top:1px solid #d7e7ed;padding-top:24px}");
         html.AppendLine("img{max-width:100%;border:1px solid #d7e7ed;border-radius:10px;background:#eef7fa}");
         html.AppendLine("p{white-space:pre-wrap}");
+        html.AppendLine("@media print{@page{margin:1cm} body{padding:0;background:#fff} main{max-width:none;border:0;padding:0} h2{break-after:avoid} img{break-inside:avoid}}");
         html.AppendLine("</style>");
         html.AppendLine("</head>");
         html.AppendLine("<body><main>");

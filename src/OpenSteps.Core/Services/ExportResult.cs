@@ -8,6 +8,8 @@ public sealed class ExportResult
 
     public string HtmlPath { get; set; } = string.Empty;
 
+    public string PdfPath { get; set; } = string.Empty;
+
     public IReadOnlyList<string> OutputPaths { get; set; } = [];
 
     public IReadOnlyList<string> Warnings { get; set; } = [];

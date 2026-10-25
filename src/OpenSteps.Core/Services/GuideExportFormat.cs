@@ -4,5 +4,6 @@ namespace OpenSteps.Core.Services;
 public enum GuideExportFormat
 {
     Markdown = 1,
-    Html = 2
+    Html = 2,
+    Pdf = 4
 }

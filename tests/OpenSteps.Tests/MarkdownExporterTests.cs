@@ -215,4 +215,48 @@ public sealed class MarkdownExporterTests
         Assert.Contains("Bad", safe);
         Assert.Contains("Name", safe);
     }
+
+    [Fact]
+    public void PdfExporter_BuildArguments_PrintsHtmlFileUriToPdfWithoutHeaderAndFooter()
+    {
+        var html = Path.Combine(Path.GetTempPath(), "My Guide", "guide.html");
+        var pdf = Path.Combine(Path.GetTempPath(), "My Guide", "guide.pdf");
+
+        var arguments = PdfExporter.BuildArguments(html, pdf, Path.Combine(Path.GetTempPath(), "profile"));
+
+        Assert.Contains("--headless", arguments);
+        Assert.Contains("--no-pdf-header-footer", arguments);
+        Assert.Contains($"--print-to-pdf=\"{Path.GetFullPath(pdf)}\"", arguments);
+        Assert.Contains("file:///", arguments);
+        Assert.Contains("My%20Guide", arguments);
+    }
+
+    [Fact]
+    public void PdfExporter_FindBrowserPath_ReturnsFirstExistingCandidateOrNull()
+    {
+        var temp = Path.Combine(Path.GetTempPath(), "OpenSteps.Tests", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(temp);
+        var existing = Path.Combine(temp, "browser.exe");
+        File.WriteAllBytes(existing, [1]);
+
+        Assert.Equal(existing, PdfExporter.FindBrowserPath([Path.Combine(temp, "missing.exe"), existing]));
+        Assert.Null(PdfExporter.FindBrowserPath([Path.Combine(temp, "missing.exe")]));
+    }
+
+    [Fact]
+    public async Task ExportAsync_WithPdfAndNoBrowser_KeepsOtherFilesAndAddsWarning()
+    {
+        var temp = Path.Combine(Path.GetTempPath(), "OpenSteps.Tests", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(temp);
+        var session = new RecordingSession { Title = "Pdf Guide" };
+        session.Steps.Add(new RecordedStep { GeneratedTitle = "Manual step", UserDescription = "Text only." });
+        var exporter = new MarkdownExporter(pdfExporter: new PdfExporter(Path.Combine(temp, "missing.exe")));
+
+        var result = await exporter.ExportAsync(session, temp, GuideExportFormat.Markdown | GuideExportFormat.Pdf);
+
+        Assert.True(File.Exists(result.MarkdownPath));
+        Assert.Equal(string.Empty, result.PdfPath);
+        Assert.Contains(result.Warnings, w => w.StartsWith("PDF was not created"));
+        Assert.False(File.Exists(Path.Combine(result.ExportFolder, "pdf-source.html")));
+    }
 }
