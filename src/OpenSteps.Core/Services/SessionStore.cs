@@ -45,6 +45,7 @@ public sealed class SessionStore : ISessionStorageService
             step.Index = i + 1;
             PersistStepImage(step, imagesDirectory, edited: false);
             PersistStepImage(step, imagesDirectory, edited: true);
+            PersistMarkedImage(step, imagesDirectory);
         }
 
         var jsonPath = GetSessionJsonPath(session.Id);
@@ -190,6 +191,27 @@ public sealed class SessionStore : ISessionStorageService
         }
     }
 
+    private static void PersistMarkedImage(RecordedStep step, string imagesDirectory)
+    {
+        var sourcePath = step.MarkedScreenshotPath;
+        if (string.IsNullOrWhiteSpace(sourcePath) || !File.Exists(sourcePath))
+        {
+            step.MarkedScreenshotPath = null;
+            step.MarkedScreenshotRelativePath = null;
+            return;
+        }
+
+        var fileName = Path.GetFileName(sourcePath);
+        var destination = Path.Combine(imagesDirectory, fileName);
+        if (!Path.GetFullPath(sourcePath).Equals(Path.GetFullPath(destination), StringComparison.OrdinalIgnoreCase))
+        {
+            File.Copy(sourcePath, destination, overwrite: true);
+        }
+
+        step.MarkedScreenshotRelativePath = Path.Combine("images", fileName).Replace('\\', '/');
+        step.MarkedScreenshotPath = destination;
+    }
+
     private static void ResolveRuntimePaths(RecordingSession session, string sessionDirectory)
     {
         session.SessionDirectory = sessionDirectory;
@@ -198,6 +220,7 @@ public sealed class SessionStore : ISessionStorageService
         {
             step.ScreenshotPath = ResolvePath(sessionDirectory, step.ScreenshotRelativePath, step.ScreenshotPath);
             step.EditedScreenshotPath = ResolvePath(sessionDirectory, step.EditedScreenshotRelativePath, step.EditedScreenshotPath);
+            step.MarkedScreenshotPath = ResolvePath(sessionDirectory, step.MarkedScreenshotRelativePath, null);
         }
     }
 

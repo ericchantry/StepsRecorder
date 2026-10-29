@@ -124,7 +124,7 @@ dotnet test OpenSteps.sln
 
 ## Known Limits
 
-- Elevated/admin apps may block hooks, screenshots, or metadata unless OpenSteps is also elevated.
+- Elevated/admin apps may block hooks, screenshots, or metadata unless OpenSteps is also elevated. While recording, OpenSteps shows a tray notification when an administrator window is in front; use the shield button or the tray menu's **Restart as administrator** to record it. The Windows UAC prompt itself can never be recorded.
 - Some apps expose little or no UI Automation metadata; screenshots and click coordinates should still work.
 - Active-window capture depends on Windows reporting usable window bounds.
 - Full-screen apps and protected content may interfere with screenshot capture.
