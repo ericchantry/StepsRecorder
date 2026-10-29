@@ -64,7 +64,7 @@ public sealed class MarkdownExporter
             cancellationToken.ThrowIfCancellationRequested();
 
             var step = session.Steps[i];
-            var screenshotPath = GetExportScreenshotPath(step);
+            var screenshotPath = step.EffectiveScreenshotPath;
             if (string.IsNullOrWhiteSpace(screenshotPath))
             {
                 continue;
@@ -109,16 +109,6 @@ public sealed class MarkdownExporter
         };
     }
 
-    private static string? GetExportScreenshotPath(RecordedStep step)
-    {
-        if (!string.IsNullOrWhiteSpace(step.EditedScreenshotPath) && File.Exists(step.EditedScreenshotPath))
-        {
-            return step.EditedScreenshotPath;
-        }
-
-        return step.ScreenshotPath;
-    }
-
     private static string BuildHtml(RecordingSession session)
     {
         var html = new StringBuilder();
@@ -146,7 +136,7 @@ public sealed class MarkdownExporter
             var number = i + 1;
             var title = string.IsNullOrWhiteSpace(step.DisplayTitle) ? $"Step {number}" : step.DisplayTitle;
             html.AppendLine($"<h2>Step {number}: {Encode(title)}</h2>");
-            var screenshotPath = GetExportScreenshotPath(step);
+            var screenshotPath = step.EffectiveScreenshotPath;
             if (!string.IsNullOrWhiteSpace(screenshotPath) && File.Exists(screenshotPath))
             {
                 html.AppendLine($"<p><img src=\"images/step-{number:000}.png\" alt=\"Step {number}\"></p>");

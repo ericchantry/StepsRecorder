@@ -19,6 +19,7 @@ public sealed record ScreenshotModeOption(string DisplayName, ScreenshotMode Mod
 public partial class MainWindow : Window, INotifyPropertyChanged
 {
     private const int ActivationSettleDelayMs = 150;
+    private const int ErrorCancelled = 1223;
 
     private readonly ActiveWindowService _activeWindowService = new();
     private readonly ClickTargetClassifier _clickTargetClassifier = new();
@@ -27,6 +28,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private readonly ScreenshotService _screenshotService;
     private readonly UiAutomationService _uiAutomationService = new();
     private readonly DpiAwarenessService _dpiAwarenessService = new();
+    private readonly ElevationService _elevationService = new();
     private readonly ScreenshotRedactionService _redactionService = new();
     private readonly StepTitleGenerator _titleGenerator = new();
     private readonly MarkdownExporter _markdownExporter = new();
@@ -53,12 +55,15 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private AppSettings _settings = new();
     private ScreenshotMode _screenshotMode = ScreenshotMode.FullDesktop;
     private bool _loadingSettings;
+    private bool _isElevated;
+    private bool _elevatedWindowWarned;
 
     public MainWindow()
     {
         _screenshotService = new ScreenshotService(_monitorService);
         InitializeComponent();
         DataContext = this;
+        UpdateAdminButton();
         Loaded += async (_, _) =>
         {
             PositionControllerBottomCenter();
@@ -67,7 +72,11 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         _typingTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(850) };
         _typingTimer.Tick += async (_, _) => await FinalizePendingTypingAsync();
         _recordingStatusTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
-        _recordingStatusTimer.Tick += (_, _) => RefreshRecordingStatus();
+        _recordingStatusTimer.Tick += (_, _) =>
+        {
+            RefreshRecordingStatus();
+            WarnIfForegroundWindowIsElevated();
+        };
         ResetSession();
         Closing += MainWindow_Closing;
         RefreshRecordingStatus();
@@ -159,6 +168,107 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         Close();
     }
 
+    private async void RestartAsAdmin_Click(object sender, RoutedEventArgs e)
+    {
+        await RestartAsAdministratorAsync();
+    }
+
+    private void UpdateAdminButton()
+    {
+        _isElevated = _elevationService.IsCurrentProcessElevated();
+        AdminButton.IsEnabled = !_isElevated;
+        AdminButton.ToolTip = _isElevated
+            ? "OpenSteps is running as administrator"
+            : "Restart as administrator to record administrator windows";
+        if (_isElevated)
+        {
+            AdminButton.Foreground = (System.Windows.Media.Brush)FindResource("AccentBrush");
+        }
+    }
+
+    /// <summary>
+    /// Windows hides input aimed at an administrator window from a non-elevated recorder, so warn once
+    /// each time such a window comes to the front.
+    /// </summary>
+    private void WarnIfForegroundWindowIsElevated()
+    {
+        if (!_isRecording || _isPaused)
+        {
+            return;
+        }
+
+        var windowElevated = _elevationService.IsWindowElevated(NativeMethodsForApp.GetForegroundWindow());
+        if (!ElevationService.ShouldWarn(_isElevated, windowElevated))
+        {
+            _elevatedWindowWarned = false;
+            return;
+        }
+
+        if (_elevatedWindowWarned)
+        {
+            return;
+        }
+
+        _elevatedWindowWarned = true;
+        try
+        {
+            _trayIcon?.ShowBalloonTip(
+                6000,
+                "Administrator window not recorded",
+                "This window runs as administrator, so Windows hides your clicks from OpenSteps. Right-click the tray icon and choose Restart as administrator to record it.",
+                WinForms.ToolTipIcon.Warning);
+        }
+        catch
+        {
+            // Balloon tips are best-effort.
+        }
+    }
+
+    private async Task RestartAsAdministratorAsync()
+    {
+        if (_isElevated)
+        {
+            return;
+        }
+
+        var message = Steps.Count > 0
+            ? "OpenSteps will save your current guide, close, and reopen as administrator. Windows will ask you to confirm."
+            : "OpenSteps will close and reopen as administrator. Windows will ask you to confirm.";
+        if (WinForms.MessageBox.Show(message, "OpenSteps", WinForms.MessageBoxButtons.OKCancel, WinForms.MessageBoxIcon.Question) != WinForms.DialogResult.OK)
+        {
+            return;
+        }
+
+        var path = Environment.ProcessPath;
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            WinForms.MessageBox.Show("OpenSteps could not find its own executable to restart.", "OpenSteps", WinForms.MessageBoxButtons.OK, WinForms.MessageBoxIcon.Error);
+            return;
+        }
+
+        try
+        {
+            if (Steps.Count > 0)
+            {
+                await SaveSessionAsync(showMessage: false);
+            }
+
+            Process.Start(new ProcessStartInfo { FileName = path, UseShellExecute = true, Verb = "runas" });
+        }
+        catch (Win32Exception ex) when (ex.NativeErrorCode == ErrorCancelled)
+        {
+            // The user declined the Windows confirmation, so keep running as before.
+            return;
+        }
+        catch (Exception ex)
+        {
+            WinForms.MessageBox.Show($"OpenSteps could not restart as administrator:\n{ex.Message}", "OpenSteps", WinForms.MessageBoxButtons.OK, WinForms.MessageBoxIcon.Error);
+            return;
+        }
+
+        Close();
+    }
+
     private void PauseRecording_Click(object sender, RoutedEventArgs e)
     {
         _isPaused = !_isPaused;
@@ -189,6 +299,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         StopHooks();
         _isRecording = true;
         _isPaused = false;
+        _elevatedWindowWarned = false;
 
         try
         {
@@ -359,8 +470,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
             try
             {
-                var screenshot = await _screenshotService.CaptureAsync(GetSessionImagesDirectory(), step.Index, x, y, ScreenshotMode, resolution?.TargetHwnd ?? IntPtr.Zero);
-                ApplyScreenshotResult(step, screenshot);
+                var screenshot = await _screenshotService.CaptureAsync(GetSessionImagesDirectory(), step.Index, x, y, ScreenshotMode, resolution?.TargetHwnd ?? IntPtr.Zero, drawHighlight: false);
+                ApplyScreenshotResult(step, screenshot, clickMarkerLayer: true);
                 step.ScreenshotCaptured = true;
             }
             catch (Exception ex)
@@ -888,6 +999,67 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         preview.ShowDialog();
     }
 
+    internal async Task ToggleClickMarkerFromEditorAsync(object sender)
+    {
+        if ((sender as FrameworkElement)?.DataContext is not RecordedStep step || !step.HasClickMarker)
+        {
+            return;
+        }
+
+        step.ShowClickMarker = !step.ShowClickMarker;
+        RefreshClickMarker(step);
+        RefreshStepViews();
+        await SaveSessionAsync(showMessage: false);
+    }
+
+    internal async Task RemoveScreenshotFromEditorAsync(object sender)
+    {
+        if ((sender as FrameworkElement)?.DataContext is not RecordedStep step || !step.HasScreenshot)
+        {
+            return;
+        }
+
+        var answer = WinForms.MessageBox.Show(
+            "Remove the screenshot from this step? The step keeps its title and description, and the image files are deleted.",
+            "OpenSteps",
+            WinForms.MessageBoxButtons.YesNo,
+            WinForms.MessageBoxIcon.Question);
+        if (answer != WinForms.DialogResult.Yes)
+        {
+            return;
+        }
+
+        // A keyboard step can still point at the screenshot of the step before it until it is saved.
+        var otherPaths = _session.Steps
+            .Where(other => other != step)
+            .SelectMany(other => new[] { other.ScreenshotPath, other.EditedScreenshotPath, other.MarkedScreenshotPath })
+            .Where(path => !string.IsNullOrWhiteSpace(path))
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        foreach (var path in new[] { step.ScreenshotPath, step.EditedScreenshotPath, step.MarkedScreenshotPath })
+        {
+            if (!string.IsNullOrWhiteSpace(path) && !otherPaths.Contains(path))
+            {
+                DeleteFileQuietly(path);
+            }
+        }
+
+        step.ScreenshotPath = null;
+        step.ScreenshotRelativePath = null;
+        step.EditedScreenshotPath = null;
+        step.EditedScreenshotRelativePath = null;
+        step.MarkedScreenshotPath = null;
+        step.MarkedScreenshotRelativePath = null;
+        step.Redactions.Clear();
+        step.ClickMarkerLayer = false;
+        step.ScreenshotCaptured = false;
+        step.ScreenshotWidth = null;
+        step.ScreenshotHeight = null;
+        step.ScreenshotError = null;
+
+        RefreshStepViews();
+        await SaveSessionAsync(showMessage: false);
+    }
+
     internal async Task EditScreenshotFromEditorAsync(object sender)
     {
         if ((sender as FrameworkElement)?.DataContext is not RecordedStep step
@@ -900,7 +1072,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
         try
         {
-            var editor = new ScreenshotRedactionWindow(step.EffectiveScreenshotPath ?? step.ScreenshotPath, step.Redactions)
+            var editor = new ScreenshotRedactionWindow(step.BaseScreenshotPath ?? step.ScreenshotPath, step.Redactions)
             {
                 Owner = _editorWindow,
                 WindowStartupLocation = WindowStartupLocation.CenterOwner
@@ -929,12 +1101,13 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             }
             else
             {
-                var sourcePath = step.EffectiveScreenshotPath ?? step.ScreenshotPath;
+                var sourcePath = step.BaseScreenshotPath ?? step.ScreenshotPath;
                 _redactionService.ApplyEdits(sourcePath, outputPath, step.Redactions, editor.Annotations);
                 step.EditedScreenshotPath = outputPath;
                 step.EditedScreenshotRelativePath = Path.Combine("images", Path.GetFileName(outputPath)).Replace('\\', '/');
             }
 
+            RefreshClickMarker(step);
             RefreshStepViews();
             await SaveSessionAsync(showMessage: false);
         }
@@ -963,6 +1136,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         step.ScreenshotWidth = source.PixelWidth;
         step.ScreenshotHeight = source.PixelHeight;
         step.ScreenshotError = null;
+        step.ClickMarkerLayer = false;
+        RefreshClickMarker(step);
 
         RefreshStepViews();
         await SaveSessionAsync(showMessage: false);
@@ -970,8 +1145,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
     private async Task CropScreenshotForStepAsync(RecordedStep step)
     {
-        if (string.IsNullOrWhiteSpace(step.EffectiveScreenshotPath)
-            || !File.Exists(step.EffectiveScreenshotPath))
+        if (string.IsNullOrWhiteSpace(step.BaseScreenshotPath)
+            || !File.Exists(step.BaseScreenshotPath))
         {
             WinForms.MessageBox.Show("No screenshot is available to crop for this step.", "OpenSteps", WinForms.MessageBoxButtons.OK, WinForms.MessageBoxIcon.Information);
             return;
@@ -979,7 +1154,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
         try
         {
-            var cropWindow = new CropWindow(step.EffectiveScreenshotPath)
+            var cropWindow = new CropWindow(step.BaseScreenshotPath)
             {
                 Owner = _editorWindow,
                 WindowStartupLocation = WindowStartupLocation.CenterOwner
@@ -990,7 +1165,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                 return;
             }
 
-            var source = LoadBitmapFrame(step.EffectiveScreenshotPath);
+            var source = LoadBitmapFrame(step.BaseScreenshotPath);
             var cropRect = cropWindow.CropRect;
             if (cropRect.Width <= 0 || cropRect.Height <= 0)
             {
@@ -1016,6 +1191,19 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             step.ScreenshotWidth = cropped.PixelWidth;
             step.ScreenshotHeight = cropped.PixelHeight;
 
+            // The click point is stored relative to the screenshot, so move it with the crop origin.
+            if (step.LocalClickX is { } clickX && step.LocalClickY is { } clickY)
+            {
+                step.LocalClickX = clickX - cropRect.X;
+                step.LocalClickY = clickY - cropRect.Y;
+                if (step.LocalClickX < 0 || step.LocalClickY < 0
+                    || step.LocalClickX >= cropped.PixelWidth || step.LocalClickY >= cropped.PixelHeight)
+                {
+                    step.ClickMarkerLayer = false;
+                }
+            }
+
+            RefreshClickMarker(step);
             RefreshStepViews();
             await SaveSessionAsync(showMessage: false);
         }
@@ -1085,8 +1273,9 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                 step.UserTitle = title.Title;
             }
 
-            var screenshot = await _screenshotService.CaptureAsync(GetSessionImagesDirectory(), $"step-{step.Index:000}-manual.png", x, y, ScreenshotMode, resolution.TargetHwnd);
-            ApplyScreenshotResult(step, screenshot);
+            var screenshot = await _screenshotService.CaptureAsync(GetSessionImagesDirectory(), $"step-{step.Index:000}-manual.png", x, y, ScreenshotMode, resolution.TargetHwnd, drawHighlight: false);
+            // The click here only picked the window to capture, so the marker starts hidden.
+            ApplyScreenshotResult(step, screenshot, clickMarkerLayer: true, showClickMarker: false);
             step.ScreenshotCaptured = true;
             SyncSessionOrder();
             await SaveSessionAsync(showMessage: false);
@@ -1190,6 +1379,11 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         Steps.Clear();
         foreach (var step in _session.Steps.OrderBy(step => step.Index))
         {
+            if (step.ClickMarkerLayer && step.ShowClickMarker && !File.Exists(step.MarkedScreenshotPath))
+            {
+                RefreshClickMarker(step);
+            }
+
             Steps.Add(step);
         }
 
@@ -1377,6 +1571,15 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         var showItem = new WinForms.ToolStripMenuItem("Show recorder");
         showItem.Click += (_, _) => TrayShowRecorder();
         menu.Items.Add(showItem);
+
+        if (!_isElevated)
+        {
+            menu.Items.Add(new WinForms.ToolStripSeparator());
+
+            var adminItem = new WinForms.ToolStripMenuItem("Restart as administrator");
+            adminItem.Click += async (_, _) => await Dispatcher.InvokeAsync(async () => await RestartAsAdministratorAsync());
+            menu.Items.Add(adminItem);
+        }
 
         _trayIcon = new WinForms.NotifyIcon
         {
@@ -1657,7 +1860,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             && y <= value.Y + value.Height;
     }
 
-    private static void ApplyScreenshotResult(RecordedStep step, ScreenshotCaptureResult screenshot)
+    private static void ApplyScreenshotResult(RecordedStep step, ScreenshotCaptureResult screenshot, bool clickMarkerLayer = false, bool showClickMarker = true)
     {
         step.ScreenshotPath = screenshot.FilePath;
         step.ScreenshotRelativePath = null;
@@ -1694,6 +1897,58 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         step.IsPrimaryMonitor = screenshot.Monitor?.IsPrimary;
         step.MonitorDpiX = screenshot.Monitor?.DpiX;
         step.MonitorDpiY = screenshot.Monitor?.DpiY;
+        step.ClickMarkerLayer = clickMarkerLayer && screenshot.HighlightWasInsideCapturedBounds == true;
+        step.ShowClickMarker = showClickMarker;
+        RefreshClickMarker(step);
+    }
+
+    /// <summary>
+    /// Rebuilds the marked copy of the step's screenshot so it matches the current base image and
+    /// marker setting. The marked copy only exists while the marker is shown.
+    /// </summary>
+    private static void RefreshClickMarker(RecordedStep step)
+    {
+        DeleteFileQuietly(step.MarkedScreenshotPath);
+        step.MarkedScreenshotPath = null;
+        step.MarkedScreenshotRelativePath = null;
+
+        var basePath = step.BaseScreenshotPath;
+        if (!step.HasClickMarker || !step.ShowClickMarker || string.IsNullOrWhiteSpace(basePath))
+        {
+            return;
+        }
+
+        var markedPath = Path.Combine(
+            Path.GetDirectoryName(basePath) ?? ".",
+            $"step-{step.Index:000}-marked-{DateTimeOffset.Now:yyyyMMdd-HHmmssfff}.png");
+        try
+        {
+            ClickMarkerRenderer.Render(basePath, markedPath, step.LocalClickX!.Value, step.LocalClickY!.Value);
+            step.MarkedScreenshotPath = markedPath;
+        }
+        catch (Exception ex) when (ex is IOException or ArgumentException or System.Runtime.InteropServices.ExternalException)
+        {
+            step.CaptureError = AppendError(step.CaptureError, $"Click marker failed: {ex.Message}");
+        }
+    }
+
+    private static void DeleteFileQuietly(string? path)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return;
+        }
+
+        try
+        {
+            File.Delete(path);
+        }
+        catch (IOException)
+        {
+        }
+        catch (UnauthorizedAccessException)
+        {
+        }
     }
 
     private static string GetEditedScreenshotPath(RecordedStep step)

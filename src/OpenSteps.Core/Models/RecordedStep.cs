@@ -32,8 +32,23 @@ public sealed class RecordedStep
 
     public bool HasRedactions => Redactions.Count > 0;
 
+    /// <summary>
+    /// True when the click circle is a separate layer (the stored screenshots are clean and the
+    /// circle is only drawn into <see cref="MarkedScreenshotPath"/>). False for legacy steps whose
+    /// circle is baked into the screenshot.
+    /// </summary>
+    public bool ClickMarkerLayer { get; set; }
+
+    public bool ShowClickMarker { get; set; } = true;
+
+    public string? MarkedScreenshotRelativePath { get; set; }
+
     [JsonIgnore]
-    public string? EffectiveScreenshotPath
+    public string? MarkedScreenshotPath { get; set; }
+
+    /// <summary>The screenshot without the click marker: the edited copy if there is one, else the original.</summary>
+    [JsonIgnore]
+    public string? BaseScreenshotPath
     {
         get
         {
@@ -45,6 +60,31 @@ public sealed class RecordedStep
             return ScreenshotPath;
         }
     }
+
+    /// <summary>The screenshot to display and export, including the click marker when it is shown.</summary>
+    [JsonIgnore]
+    public string? EffectiveScreenshotPath
+    {
+        get
+        {
+            if (ClickMarkerLayer
+                && ShowClickMarker
+                && !string.IsNullOrWhiteSpace(MarkedScreenshotPath)
+                && File.Exists(MarkedScreenshotPath))
+            {
+                return MarkedScreenshotPath;
+            }
+
+            return BaseScreenshotPath;
+        }
+    }
+
+    [JsonIgnore]
+    public bool HasScreenshot => EffectiveScreenshotPath is { } path && File.Exists(path);
+
+    /// <summary>Whether this step has a click marker layer the user can switch on or off.</summary>
+    [JsonIgnore]
+    public bool HasClickMarker => ClickMarkerLayer && LocalClickX.HasValue && LocalClickY.HasValue && HasScreenshot;
 
     public int ClickX { get; set; }
 

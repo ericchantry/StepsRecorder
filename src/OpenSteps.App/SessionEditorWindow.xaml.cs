@@ -73,6 +73,16 @@ public partial class SessionEditorWindow : Window
         _controller.ViewScreenshotFromEditor(sender);
     }
 
+    private async void ToggleClickMarker_Click(object sender, RoutedEventArgs e)
+    {
+        await _controller.ToggleClickMarkerFromEditorAsync(sender);
+    }
+
+    private async void RemoveScreenshot_Click(object sender, RoutedEventArgs e)
+    {
+        await _controller.RemoveScreenshotFromEditorAsync(sender);
+    }
+
     private async void EditScreenshot_Click(object sender, RoutedEventArgs e)
     {
         await _controller.EditScreenshotFromEditorAsync(sender);

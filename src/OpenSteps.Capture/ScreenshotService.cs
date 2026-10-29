@@ -152,7 +152,7 @@ public sealed class ScreenshotService
             graphics.CopyFromScreen(bounds.Left, bounds.Top, 0, 0, captureBounds.Size, CopyPixelOperation.SourceCopy);
             if (drawHighlight && highlightInside)
             {
-                DrawClickHighlight(graphics, highlightX, highlightY);
+                ClickMarkerRenderer.Draw(graphics, highlightX, highlightY);
             }
         }
 
@@ -220,7 +220,7 @@ public sealed class ScreenshotService
             graphics.CopyFromScreen(bounds.Left, bounds.Top, 0, 0, bounds.Size, CopyPixelOperation.SourceCopy);
             if (drawHighlight && highlightInside)
             {
-                DrawClickHighlight(graphics, localClickX, localClickY);
+                ClickMarkerRenderer.Draw(graphics, localClickX, localClickY);
             }
         }
 
@@ -259,13 +259,5 @@ public sealed class ScreenshotService
         }
 
         return Rectangle.FromLTRB(monitor.BoundsLeft, monitor.BoundsTop, monitor.BoundsRight, monitor.BoundsBottom);
-    }
-
-    private static void DrawClickHighlight(Graphics graphics, int x, int y)
-    {
-        const int radius = 22;
-        using var pen = new Pen(Color.FromArgb(230, 220, 30, 30), 5);
-        graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
-        graphics.DrawEllipse(pen, x - radius, y - radius, radius * 2, radius * 2);
     }
 }
