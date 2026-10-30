@@ -287,10 +287,11 @@ public sealed class ScreenVideoRecorder : IAsyncDisposable
         var data = frame.LockBits(new Rectangle(0, 0, _outputWidth, _outputHeight), ImageLockMode.ReadOnly, PixelFormat.Format32bppRgb);
         try
         {
+            // Media Foundation treats uncompressed RGB as bottom-up, so write the rows in reverse.
             var rowBytes = _outputWidth * 4;
             for (var y = 0; y < _outputHeight; y++)
             {
-                Marshal.Copy(data.Scan0 + y * data.Stride, destination, y * rowBytes, rowBytes);
+                Marshal.Copy(data.Scan0 + y * data.Stride, destination, (_outputHeight - 1 - y) * rowBytes, rowBytes);
             }
         }
         finally
