@@ -679,6 +679,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     {
         _isRecording = false;
         _isPaused = false;
+        _screenshotCaptureTargetStep = null;
         await FinalizePendingTypingAsync();
         _recordingStatusTimer.Stop();
         StopHooks();
@@ -1231,6 +1232,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         StopHooks();
         StopVideoForShutdown();
         _reviewWindow?.Close();
+        _recordingBar?.Close();
         if (_trayIcon is not null)
         {
             _trayIcon.Visible = false;
@@ -1444,6 +1446,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             RecordingStatusText.Text = $"{state} - {ScreenshotModeDisplayText} - {elapsed:mm\\:ss} - {Steps.Count} {stepLabel}";
             RecordingDot.Visibility = _isPaused ? Visibility.Collapsed : Visibility.Visible;
             UpdateTrayStatus(state, elapsed, stepLabel);
+            UpdateRecordingBar(elapsed);
         }
         else
         {
@@ -1499,6 +1502,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
     private void ShowRecordingTray()
     {
+        ShowRecordingBar();
         EnsureTrayIcon();
         if (_trayIcon is null)
         {
@@ -1512,19 +1516,11 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         {
             _trayPauseItem.Text = "Pause recording";
         }
-
-        try
-        {
-            _trayIcon.ShowBalloonTip(2200, "OpenSteps is recording", "Right-click the tray icon, or double-click it, to stop.", WinForms.ToolTipIcon.None);
-        }
-        catch
-        {
-            // Balloon tips are best-effort.
-        }
     }
 
     private void HideRecordingTray()
     {
+        HideRecordingBar();
         if (_trayIcon is null)
         {
             return;
