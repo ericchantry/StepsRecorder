@@ -217,6 +217,8 @@ public partial class MainWindow
         _pickingWindow = true;
         var picked = IntPtr.Zero;
         var prompt = new WindowPickPrompt { Owner = this };
+        var promptClosed = false;
+        prompt.Closed += (_, _) => promptClosed = true;
         try
         {
             prompt.Show();
@@ -260,12 +262,12 @@ public partial class MainWindow
         }
         finally
         {
-            if (prompt.IsLoaded)
+            _pickingWindow = false;
+            if (!promptClosed)
             {
                 prompt.Close();
             }
 
-            _pickingWindow = false;
             if (picked == IntPtr.Zero)
             {
                 RestoreCaptureComboSelection();
