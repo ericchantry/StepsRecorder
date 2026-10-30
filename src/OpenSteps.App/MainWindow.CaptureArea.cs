@@ -34,7 +34,7 @@ public partial class MainWindow
             if (value.IsPicker)
             {
                 // "Pick a window…" is an action, not a choice: keep showing the current choice and start picking.
-                Dispatcher.BeginInvoke(() => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(SelectedCaptureOption))));
+                Dispatcher.BeginInvoke(RestoreCaptureComboSelection, System.Windows.Threading.DispatcherPriority.Background);
                 _ = PickWindowAsync();
                 return;
             }
@@ -162,6 +162,15 @@ public partial class MainWindow
             ScreenshotMode.Window => "Window",
             _ => ScreenshotModeLabels.GetDisplayText(ScreenshotMode)
         };
+    }
+
+    /// <summary>Puts the current choice back in the Capture box (after "Pick a window…" was clicked).</summary>
+    private void RestoreCaptureComboSelection()
+    {
+        if (!ReferenceEquals(CaptureModeCombo.SelectedItem, _selectedCaptureOption))
+        {
+            CaptureModeCombo.SelectedItem = _selectedCaptureOption;
+        }
     }
 
     private static ScreenshotModeOption CreateWindowOption(CapturableWindow window)
