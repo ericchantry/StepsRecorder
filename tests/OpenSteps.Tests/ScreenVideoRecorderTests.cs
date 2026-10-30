@@ -46,5 +46,16 @@ public sealed class ScreenVideoRecorderTests
         }
 
         Assert.Equal("ftyp", System.Text.Encoding.ASCII.GetString(header, 4, 4));
+
+        // Decode a frame back out of the file with Windows' own media stack to prove it is playable.
+        var file = await Windows.Storage.StorageFile.GetFileFromPathAsync(path);
+        var clip = await Windows.Media.Editing.MediaClip.CreateFromFileAsync(file);
+        Assert.InRange(clip.OriginalDuration.TotalSeconds, 2.0, 3.6);
+        var composition = new Windows.Media.Editing.MediaComposition();
+        composition.Clips.Add(clip);
+        using var thumbnail = await composition.GetThumbnailAsync(TimeSpan.FromSeconds(1), 0, 0, Windows.Media.Editing.VideoFramePrecision.NearestFrame);
+        Assert.True(thumbnail.Size > 0);
+        await using var output = File.Create(Path.ChangeExtension(path, ".frame.jpg"));
+        await thumbnail.AsStreamForRead().CopyToAsync(output);
     }
 }
