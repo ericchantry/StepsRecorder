@@ -20,9 +20,11 @@ public sealed class ScreenVideoRecorderTests
 
         var path = Path.Combine(Path.GetTempPath(), "OpenStepsTests", Guid.NewGuid().ToString("N"), "recording.mp4");
         var clock = new RecordingClock();
-        clock.Start();
         var recorder = new ScreenVideoRecorder(clock, framesPerSecond: 10);
+
+        // Encoder set-up can take a second or two, so the clock starts once the recorder is ready.
         await recorder.StartAsync(path);
+        clock.Start();
 
         await Task.Delay(1500);
         recorder.MarkClick(100, 100);

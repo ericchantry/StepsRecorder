@@ -58,7 +58,10 @@ public sealed class ScreenVideoRecorder : IAsyncDisposable
 
     public bool IsRecording => _transcodeTask is { IsCompleted: false };
 
-    /// <summary>Starts encoding to <paramref name="outputPath"/>. The clock must already be started.</summary>
+    /// <summary>
+    /// Prepares the encoder and starts writing to <paramref name="outputPath"/>. Start the clock after this
+    /// returns: encoder set-up can take a moment, and frames are only timestamped once the clock runs.
+    /// </summary>
     public async Task StartAsync(string outputPath)
     {
         if (_transcodeTask is not null)
