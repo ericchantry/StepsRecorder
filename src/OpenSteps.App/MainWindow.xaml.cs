@@ -1319,7 +1319,6 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private void UpdateSessionSummary()
     {
         _editorWindow?.SetSummary($"{Steps.Count} captured step{(Steps.Count == 1 ? string.Empty : "s")} - Local session folder: {_session.OutputDirectory}");
-        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Steps)));
     }
 
     private void RefreshRecordingStatus()

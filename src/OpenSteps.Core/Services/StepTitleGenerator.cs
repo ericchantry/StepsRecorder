@@ -98,7 +98,7 @@ public sealed class StepTitleGenerator
 
     private static string Quote(string value)
     {
-        return value.Contains('\'') ? $"\"{value}\"" : $"'{value}'";
+        return $"'{value}'";
     }
 
     private static bool IsControlType(string? actual, string expected)
