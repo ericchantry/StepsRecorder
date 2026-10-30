@@ -1,3 +1,4 @@
+using System.IO;
 using OpenSteps.Capture;
 using OpenSteps.Core.Services;
 
