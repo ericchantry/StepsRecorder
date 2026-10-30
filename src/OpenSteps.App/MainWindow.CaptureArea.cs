@@ -16,6 +16,7 @@ public partial class MainWindow
     private IntPtr _captureWindowHandle;
     private bool _captureWindowLost;
     private bool _pickingWindow;
+    private ScreenshotModeOption? _optionBeforePick;
     private string? _captureMonitorDeviceName;
     private System.Drawing.Rectangle? _captureMonitorBounds;
     private ScreenshotModeOption? _selectedCaptureOption;
@@ -33,9 +34,15 @@ public partial class MainWindow
 
             if (value.IsPicker)
             {
-                // "Pick a window…" is an action, not a choice. The box shows it while picking; the previous
-                // choice is put back if picking is cancelled.
-                _ = PickWindowAsync();
+                // "Pick a window…" is an action, not a choice. The box shows it while picking (the capture mode
+                // itself does not change), and the previous choice is put back if picking is cancelled.
+                if (!_pickingWindow && !_isRecording)
+                {
+                    _optionBeforePick = _selectedCaptureOption;
+                    _selectedCaptureOption = value;
+                    _ = PickWindowAsync();
+                }
+
                 return;
             }
 
@@ -164,23 +171,16 @@ public partial class MainWindow
         };
     }
 
-    /// <summary>Puts the current choice back in the Capture box (after "Pick a window…" was clicked).</summary>
+    /// <summary>Puts the choice from before "Pick a window…" back in the Capture box.</summary>
     private void RestoreCaptureComboSelection()
     {
-        // WPF already reverted SelectedItem when the setter ignored "Pick a window…", but the box can keep
-        // showing the picker text, so clear and re-set the selection to redraw it.
-        var current = _selectedCaptureOption;
-        _refreshingCaptureOptions = true;
-        try
+        if (_selectedCaptureOption?.IsPicker == true)
         {
-            CaptureModeCombo.SelectedItem = null;
-        }
-        finally
-        {
-            _refreshingCaptureOptions = false;
+            _selectedCaptureOption = _optionBeforePick ?? ScreenshotModeOptions.FirstOrDefault();
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(SelectedCaptureOption)));
         }
 
-        CaptureModeCombo.SelectedItem = current;
+        _optionBeforePick = null;
     }
 
     private static ScreenshotModeOption CreateWindowOption(CapturableWindow window)
@@ -219,11 +219,6 @@ public partial class MainWindow
     /// <summary>Asks the user to click the window to record, then selects it and outlines it briefly.</summary>
     private async Task PickWindowAsync()
     {
-        if (_pickingWindow || _isRecording)
-        {
-            return;
-        }
-
         _pickingWindow = true;
         var picked = IntPtr.Zero;
         var prompt = new WindowPickPrompt { Owner = this };
