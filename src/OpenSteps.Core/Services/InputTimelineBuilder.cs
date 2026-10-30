@@ -7,7 +7,8 @@ namespace OpenSteps.Core.Services;
 public enum TimelineCategory
 {
     Keyboard,
-    Mouse
+    Mouse,
+    Step
 }
 
 public sealed record TimelineEntry(
@@ -23,6 +24,8 @@ public sealed record TimelineEntry(
     public bool IsKeyboard => Category == TimelineCategory.Keyboard;
 
     public bool IsMouse => Category == TimelineCategory.Mouse;
+
+    public bool IsStep => Category == TimelineCategory.Step;
 }
 
 /// <summary>
@@ -34,6 +37,25 @@ public static class InputTimelineBuilder
     public static readonly TimeSpan TypingGap = TimeSpan.FromSeconds(2);
     public static readonly TimeSpan ScrollGap = TimeSpan.FromSeconds(1.5);
     private const int WheelDelta = 120;
+
+    /// <summary>Input events plus a marker row for every guide step that has a video position.</summary>
+    public static IReadOnlyList<TimelineEntry> BuildWithSteps(IEnumerable<InputEvent> events, IEnumerable<RecordedStep> steps)
+    {
+        var entries = Build(events).ToList();
+        foreach (var step in steps)
+        {
+            if (step is { VideoSegment: { } segment, VideoOffsetSeconds: { } offset })
+            {
+                entries.Add(new TimelineEntry(segment, offset, TimelineCategory.Step, $"Step {step.Index}: {step.DisplayTitle}", null));
+            }
+        }
+
+        return entries
+            .OrderBy(e => e.Segment)
+            .ThenBy(e => e.OffsetSeconds)
+            .ThenBy(e => e.IsStep ? 0 : 1)
+            .ToList();
+    }
 
     public static IReadOnlyList<TimelineEntry> Build(IEnumerable<InputEvent> events)
     {

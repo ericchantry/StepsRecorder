@@ -77,6 +77,20 @@
                             Style="{StaticResource IconButton}"
                             Width="36" Height="36"
                             Margin="6,0,0,0" />
+                    <Button Click="ReviewRecording_Click"
+                            Margin="14,0,0,0"
+                            Padding="14,0"
+                            Height="36"
+                            ToolTip="Watch the session video next to the keyboard and mouse timeline">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="&#xE714;"
+                                       FontFamily="Segoe MDL2 Assets"
+                                       FontSize="13"
+                                       VerticalAlignment="Center"
+                                       Margin="0,0,8,0" />
+                            <TextBlock Text="Video &amp; timeline" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Button>
                     <Button Click="ExportMarkdown_Click"
                             Margin="14,0,0,0"
                             Padding="16,0"
@@ -192,6 +206,30 @@
                                                            FontSize="12"
                                                            VerticalAlignment="Center"
                                                            Margin="10,0,0,0" />
+                                                <Button Click="JumpToVideo_Click"
+                                                        ToolTip="Watch this step in the session video"
+                                                        Margin="10,0,0,0"
+                                                        Padding="8,0"
+                                                        Height="24"
+                                                        FontSize="11.5">
+                                                    <Button.Style>
+                                                        <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding HasVideoOffset}" Value="False">
+                                                                    <Setter Property="Visibility" Value="Collapsed" />
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </Button.Style>
+                                                    <StackPanel Orientation="Horizontal">
+                                                        <TextBlock Text="&#xE768;"
+                                                                   FontFamily="Segoe MDL2 Assets"
+                                                                   FontSize="10"
+                                                                   VerticalAlignment="Center"
+                                                                   Margin="0,0,5,0" />
+                                                        <TextBlock Text="{Binding VideoOffsetLabel}" VerticalAlignment="Center" />
+                                                    </StackPanel>
+                                                </Button>
                                             </StackPanel>
 
                                             <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">

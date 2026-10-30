@@ -300,3 +300,24 @@ public sealed class TimeFormatAndPolicyTests
         Assert.Equal(1.25, loaded.Steps[0].VideoOffsetSeconds);
     }
 }
+
+public sealed class InputTimelineWithStepsTests
+{
+    [Fact]
+    public void BuildWithSteps_InsertsStepMarkersBeforeEventsAtSameTime()
+    {
+        var events = new[] { new InputEvent { Segment = 1, OffsetSeconds = 2, Kind = InputEventKind.Click, X = 5, Y = 6 } };
+        var steps = new[]
+        {
+            new RecordedStep { Index = 1, GeneratedTitle = "Click the 'Save' button", VideoSegment = 1, VideoOffsetSeconds = 2 },
+            new RecordedStep { Index = 2, GeneratedTitle = "Manual step" }
+        };
+
+        var entries = InputTimelineBuilder.BuildWithSteps(events, steps);
+
+        Assert.Equal(2, entries.Count);
+        Assert.Equal("Step 1: Click the 'Save' button", entries[0].Label);
+        Assert.True(entries[0].IsStep);
+        Assert.Equal("Left click at (5, 6)", entries[1].Label);
+    }
+}

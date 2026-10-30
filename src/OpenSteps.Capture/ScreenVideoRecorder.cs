@@ -131,14 +131,14 @@ public sealed class ScreenVideoRecorder : IAsyncDisposable
         {
             try
             {
-                var finished = await Task.WhenAny(_transcodeTask, Task.Delay(TimeSpan.FromSeconds(60)));
+                var finished = await Task.WhenAny(_transcodeTask, Task.Delay(TimeSpan.FromSeconds(60))).ConfigureAwait(false);
                 if (finished != _transcodeTask)
                 {
                     error = "The video encoder did not finish within 60 seconds.";
                 }
                 else
                 {
-                    await _transcodeTask;
+                    await _transcodeTask.ConfigureAwait(false);
                 }
             }
             catch (Exception ex)
@@ -148,7 +148,7 @@ public sealed class ScreenVideoRecorder : IAsyncDisposable
         }
 
         error ??= _frameError?.Message;
-        await DisposeStreamAsync();
+        await DisposeStreamAsync().ConfigureAwait(false);
         _captureBitmap?.Dispose();
         _captureBitmap = null;
         _scaledBitmap?.Dispose();
@@ -190,7 +190,7 @@ public sealed class ScreenVideoRecorder : IAsyncDisposable
     {
         if (_fileStream is not null)
         {
-            await _fileStream.DisposeAsync();
+            await _fileStream.DisposeAsync().ConfigureAwait(false);
             _fileStream = null;
         }
     }

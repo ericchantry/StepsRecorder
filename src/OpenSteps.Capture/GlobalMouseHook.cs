@@ -30,6 +30,9 @@ public sealed class GlobalMouseHook : IDisposable
 
     public event EventHandler<ClickCapturedEventArgs>? ClickCaptured;
 
+    /// <summary>Raised immediately on every left/right/middle button press (before double-click grouping), on the hook thread.</summary>
+    public event Action<int, int>? ButtonPressed;
+
     /// <summary>Middle clicks, wheel scrolls and drags, for the input timeline.</summary>
     public event EventHandler<PointerActivityEventArgs>? PointerActivityCaptured;
 
@@ -103,6 +106,11 @@ public sealed class GlobalMouseHook : IDisposable
         if (_shouldIgnoreClick(data.Pt.X, data.Pt.Y))
         {
             return;
+        }
+
+        if (message is NativeMethods.WM_LBUTTONDOWN or NativeMethods.WM_RBUTTONDOWN or NativeMethods.WM_MBUTTONDOWN)
+        {
+            ButtonPressed?.Invoke(data.Pt.X, data.Pt.Y);
         }
 
         switch (message)
