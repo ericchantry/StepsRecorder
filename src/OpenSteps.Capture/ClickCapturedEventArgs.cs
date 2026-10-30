@@ -8,7 +8,8 @@ public sealed class ClickCapturedEventArgs(
     StepActionType actionType = StepActionType.Click,
     string mouseButton = "Left",
     int clickCount = 1,
-    string? doubleClickDetectionReason = null) : EventArgs
+    string? doubleClickDetectionReason = null,
+    DateTimeOffset? timestamp = null) : EventArgs
 {
     public int X { get; } = x;
 
@@ -21,4 +22,7 @@ public sealed class ClickCapturedEventArgs(
     public int ClickCount { get; } = clickCount;
 
     public string? DoubleClickDetectionReason { get; } = doubleClickDetectionReason;
+
+    /// <summary>When the (first) button press physically happened (UTC).</summary>
+    public DateTimeOffset Timestamp { get; } = timestamp ?? DateTimeOffset.UtcNow;
 }

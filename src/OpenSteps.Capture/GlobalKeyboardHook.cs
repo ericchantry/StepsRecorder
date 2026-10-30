@@ -1,16 +1,24 @@
 using System.Runtime.InteropServices;
+using OpenSteps.Core.Services;
 
 namespace OpenSteps.Capture;
 
 public sealed class GlobalKeyboardHook : IDisposable
 {
+    // ToUnicodeEx flag: do not change the keyboard state (keeps dead keys working in the target app). Windows 10 1607+.
+    private const uint ToUnicodeDoNotChangeState = 0x4;
+
     private readonly Func<bool> _shouldIgnoreKeyboard;
+    private readonly Func<bool> _captureText;
     private readonly NativeMethods.LowLevelHookProc _callback;
+    private readonly byte[] _keyState = new byte[256];
+    private readonly char[] _charBuffer = new char[8];
     private IntPtr _hookHandle;
 
-    public GlobalKeyboardHook(Func<bool>? shouldIgnoreKeyboard = null)
+    public GlobalKeyboardHook(Func<bool>? shouldIgnoreKeyboard = null, Func<bool>? captureText = null)
     {
         _shouldIgnoreKeyboard = shouldIgnoreKeyboard ?? (() => false);
+        _captureText = captureText ?? (() => false);
         _callback = HookCallback;
     }
 
@@ -57,7 +65,7 @@ public sealed class GlobalKeyboardHook : IDisposable
             try
             {
                 var data = Marshal.PtrToStructure<NativeMethods.KBDLLHOOKSTRUCT>(lParam);
-                var captured = ClassifyKey((int)data.VkCode);
+                var captured = Classify(data);
                 if (captured is not null)
                 {
                     KeyboardInputCaptured?.Invoke(this, captured);
@@ -72,69 +80,120 @@ public sealed class GlobalKeyboardHook : IDisposable
         return NativeMethods.CallNextHookEx(_hookHandle, nCode, wParam, lParam);
     }
 
-    private static KeyboardInputEventArgs? ClassifyKey(int vkCode)
+    private KeyboardInputEventArgs? Classify(NativeMethods.KBDLLHOOKSTRUCT data)
     {
-        var ctrl = IsDown(0x11) || IsDown(0xA2) || IsDown(0xA3);
-        var alt = IsDown(0x12) || IsDown(0xA4) || IsDown(0xA5);
-        var shift = IsDown(0x10) || IsDown(0xA0) || IsDown(0xA1);
-
-        if (ctrl)
-        {
-            var shortcut = vkCode switch
-            {
-                0x41 => "Ctrl+A",
-                0x43 => "Ctrl+C",
-                0x53 => "Ctrl+S",
-                0x56 => "Ctrl+V",
-                0x5A => "Ctrl+Z",
-                _ => null
-            };
-
-            if (shortcut is not null)
-            {
-                return new KeyboardInputEventArgs(KeyboardInputKind.Shortcut, null, shortcut);
-            }
-        }
-
-        var special = vkCode switch
-        {
-            0x08 => "Backspace",
-            0x09 => "Tab",
-            0x0D => "Enter",
-            0x1B => "Escape",
-            0x2E => "Delete",
-            0x25 => "Left Arrow",
-            0x26 => "Up Arrow",
-            0x27 => "Right Arrow",
-            0x28 => "Down Arrow",
-            _ => null
-        };
-
-        if (special is not null)
-        {
-            return new KeyboardInputEventArgs(KeyboardInputKind.SpecialKey, special, null);
-        }
-
-        if (alt || ctrl)
+        var vk = (int)data.VkCode;
+        if (KeyNames.IsModifier(vk))
         {
             return null;
         }
 
-        if (IsPrintableTypingKey(vkCode) || vkCode == 0x20)
+        var timestamp = DateTimeOffset.UtcNow;
+        var modifiers = ReadModifiers();
+        var text = TranslateToText(data, modifiers);
+        var classification = KeyNames.Classify(vk, modifiers, producesText: text is not null);
+        if (classification is null)
         {
-            return new KeyboardInputEventArgs(KeyboardInputKind.Text, shift ? "Shift+Text" : "Text", null);
+            return null;
         }
 
-        return null;
+        return classification.Category switch
+        {
+            KeyCategory.Shortcut => new KeyboardInputEventArgs(KeyboardInputKind.Shortcut, null, classification.Name, vk, modifiers, null, timestamp),
+            KeyCategory.SpecialKey => new KeyboardInputEventArgs(KeyboardInputKind.SpecialKey, classification.Name, null, vk, modifiers, null, timestamp),
+            KeyCategory.Text => new KeyboardInputEventArgs(
+                KeyboardInputKind.Text,
+                modifiers.HasFlag(KeyModifiers.Shift) ? "Shift+Text" : "Text",
+                null,
+                vk,
+                modifiers,
+                _captureText() ? text : null,
+                timestamp),
+            _ => new KeyboardInputEventArgs(KeyboardInputKind.TimelineOnly, classification.Name, null, vk, modifiers, null, timestamp)
+        };
     }
 
-    private static bool IsPrintableTypingKey(int vkCode)
+    /// <summary>
+    /// Asks the foreground window's keyboard layout which character this press produces, without
+    /// disturbing dead-key state. Returns null for non-printing keys.
+    /// </summary>
+    private string? TranslateToText(NativeMethods.KBDLLHOOKSTRUCT data, KeyModifiers modifiers)
     {
-        return vkCode is >= 0x30 and <= 0x39
-            or >= 0x41 and <= 0x5A
-            or >= 0x60 and <= 0x6F
-            or >= 0xBA and <= 0xC0
-            or >= 0xDB and <= 0xDE;
+        var vk = (int)data.VkCode;
+        if (modifiers.HasFlag(KeyModifiers.Win) || (modifiers.HasFlag(KeyModifiers.Ctrl) ^ modifiers.HasFlag(KeyModifiers.Alt)))
+        {
+            // Ctrl or Alt alone (not AltGr) means a shortcut, not text.
+            return null;
+        }
+
+        if (!KeyNames.IsPrintableKey(vk))
+        {
+            return null;
+        }
+
+        try
+        {
+            Array.Clear(_keyState);
+            SetState(0x10, IsDown(0x10));
+            SetState(0x11, IsDown(0x11));
+            SetState(0x12, IsDown(0x12));
+            SetState(0xA2, IsDown(0xA2));
+            SetState(0xA5, IsDown(0xA5));
+            if ((NativeMethods.GetKeyState(0x14) & 1) != 0)
+            {
+                _keyState[0x14] = 0x01; // Caps Lock toggled
+            }
+
+            var foreground = NativeMethods.GetForegroundWindow();
+            var threadId = NativeMethods.GetWindowThreadProcessId(foreground, out _);
+            var layout = NativeMethods.GetKeyboardLayout(threadId);
+            var count = NativeMethods.ToUnicodeEx(data.VkCode, data.ScanCode, _keyState, _charBuffer, _charBuffer.Length, ToUnicodeDoNotChangeState, layout);
+            if (count <= 0)
+            {
+                return null;
+            }
+
+            var result = new string(_charBuffer, 0, count);
+            return result.All(ch => !char.IsControl(ch)) ? result : null;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private void SetState(int vk, bool down)
+    {
+        if (down)
+        {
+            _keyState[vk] = 0x80;
+        }
+    }
+
+    private static KeyModifiers ReadModifiers()
+    {
+        var modifiers = KeyModifiers.None;
+        if (IsDown(0x11) || IsDown(0xA2) || IsDown(0xA3))
+        {
+            modifiers |= KeyModifiers.Ctrl;
+        }
+
+        if (IsDown(0x12) || IsDown(0xA4) || IsDown(0xA5))
+        {
+            modifiers |= KeyModifiers.Alt;
+        }
+
+        if (IsDown(0x10) || IsDown(0xA0) || IsDown(0xA1))
+        {
+            modifiers |= KeyModifiers.Shift;
+        }
+
+        if (IsDown(0x5B) || IsDown(0x5C))
+        {
+            modifiers |= KeyModifiers.Win;
+        }
+
+        return modifiers;
     }
 
     private static bool IsDown(int virtualKey)

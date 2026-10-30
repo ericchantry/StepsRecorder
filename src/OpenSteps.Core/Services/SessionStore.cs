@@ -47,6 +47,11 @@ public sealed class SessionStore : ISessionStorageService
             PersistStepImage(step, imagesDirectory, edited: true);
         }
 
+        foreach (var segment in session.Segments)
+        {
+            PersistSegmentVideo(segment, sessionDirectory);
+        }
+
         var jsonPath = GetSessionJsonPath(session.Id);
         await using var stream = File.Create(jsonPath);
         await JsonSerializer.SerializeAsync(stream, session, JsonOptions, cancellationToken);
@@ -190,10 +195,30 @@ public sealed class SessionStore : ISessionStorageService
         }
     }
 
+    private static void PersistSegmentVideo(RecordingSegment segment, string sessionDirectory)
+    {
+        if (string.IsNullOrWhiteSpace(segment.VideoPath))
+        {
+            return;
+        }
+
+        var fullPath = Path.GetFullPath(segment.VideoPath);
+        var root = Path.GetFullPath(sessionDirectory).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar) + Path.DirectorySeparatorChar;
+        if (fullPath.StartsWith(root, StringComparison.OrdinalIgnoreCase))
+        {
+            segment.VideoRelativePath = Path.GetRelativePath(sessionDirectory, fullPath).Replace('\\', '/');
+        }
+    }
+
     private static void ResolveRuntimePaths(RecordingSession session, string sessionDirectory)
     {
         session.SessionDirectory = sessionDirectory;
         session.OutputDirectory = sessionDirectory;
+        foreach (var segment in session.Segments)
+        {
+            segment.VideoPath = ResolvePath(sessionDirectory, segment.VideoRelativePath, segment.VideoPath);
+        }
+
         foreach (var step in session.Steps)
         {
             step.ScreenshotPath = ResolvePath(sessionDirectory, step.ScreenshotRelativePath, step.ScreenshotPath);

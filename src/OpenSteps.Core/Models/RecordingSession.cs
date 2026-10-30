@@ -17,4 +17,10 @@ public sealed class RecordingSession
     public string OutputDirectory { get; set; } = string.Empty;
 
     public List<RecordedStep> Steps { get; set; } = [];
+
+    public List<RecordingSegment> Segments { get; set; } = [];
+
+    public List<InputEvent> InputEvents { get; set; } = [];
+
+    public EnvironmentInfo? Environment { get; set; }
 }
