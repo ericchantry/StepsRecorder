@@ -167,6 +167,7 @@ public partial class MainWindow
     /// <summary>Puts the current choice back in the Capture box (after "Pick a window…" was clicked).</summary>
     private void RestoreCaptureComboSelection()
     {
+        System.IO.File.AppendAllText(System.IO.Path.Combine(System.IO.Path.GetTempPath(), "opensteps-debug.log"), $"restore: combo={CaptureModeCombo.SelectedItem} current={_selectedCaptureOption} same={ReferenceEquals(CaptureModeCombo.SelectedItem, _selectedCaptureOption)} inList={ScreenshotModeOptions.Contains(_selectedCaptureOption!)}\n");
         if (!ReferenceEquals(CaptureModeCombo.SelectedItem, _selectedCaptureOption))
         {
             CaptureModeCombo.SelectedItem = _selectedCaptureOption;
@@ -260,8 +261,14 @@ public partial class MainWindow
                 WindowHighlight.Flash(bounds);
             }
         }
+        catch (Exception ex)
+        {
+            System.IO.File.AppendAllText(System.IO.Path.Combine(System.IO.Path.GetTempPath(), "opensteps-debug.log"), $"pick error: {ex}\n");
+            throw;
+        }
         finally
         {
+            System.IO.File.AppendAllText(System.IO.Path.Combine(System.IO.Path.GetTempPath(), "opensteps-debug.log"), $"finally picked={picked} closed={promptClosed}\n");
             _pickingWindow = false;
             if (!promptClosed)
             {
