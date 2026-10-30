@@ -10,6 +10,7 @@ public static class ScreenshotModeLabels
         {
             ScreenshotMode.ActiveWindow => "Active Window",
             ScreenshotMode.Monitor => "Single Monitor",
+            ScreenshotMode.Window => "Single Window",
             _ => "Full Desktop"
         };
     }

@@ -31,6 +31,7 @@ Everything stays on your computer. No account, no cloud, no telemetry, and no ad
 
 - **Session video.** An MP4 of all your monitors, a single monitor, or whichever monitor you're working on, with the cursor and a highlight on every click. Paused time is cut out.
 - **Record a single monitor.** Pick one monitor to record; activity on your other monitors is left out of the screenshots, video and timeline.
+- **Record a single window.** Choose an open window (say, an Excel workbook) and the screenshots and video show only that window, wherever it is moved.
 - **Keystroke and mouse timeline.** Every key and shortcut (Ctrl+F, Alt+Tab, F5, Win+R…), the text you typed, clicks, scrolls, drags and middle clicks — each with a timestamp and the window it went to.
 - **Video & timeline review.** Watch the video next to the timeline. Click any row to jump to that moment; the current row highlights as it plays. Every step has a button that opens the video at that step.
 - **Typed text in steps.** Steps now read like `Type 'invoice 1042' into the 'Search' field`. Backspace corrections are applied.
@@ -61,6 +62,7 @@ OpenSteps is not code-signed yet. SmartScreen may warn on first launch, and secu
      - *All monitors* – everything.
      - *Left / Middle / Right monitor* (or *Monitor 1, 2…* when they aren't side by side) – just that monitor. Clicks and typing on your other monitors are ignored, so nothing from them ends up in the guide or the timeline.
      - *Active window* – screenshots show only the window you're working in, and the video follows whichever monitor that window is on.
+     - *Window · …* – one app window you choose, e.g. *Window · Q3 Budget.xlsx - Excel*. Screenshots and the video show only that window, following it if you move or resize it (pop-up menus and dialogs show where they overlap it). Clicks and typing in other apps still become steps, but their screenshots show the chosen window. Pick from the list of open windows, or choose **Pick a window by clicking it…** and click the one you want; it's outlined so you can confirm.
    - **Video** – record a video of the session.
    - **Typed text** – record the characters you type (password fields are always masked).
 2. **Press Record** (●). The recorder bar hides and a small bar appears at the bottom of the screen:

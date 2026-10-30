@@ -14,7 +14,14 @@ using WinForms = System.Windows.Forms;
 
 namespace OpenSteps.App;
 
-public sealed record ScreenshotModeOption(string DisplayName, ScreenshotMode Mode, string? MonitorDeviceName = null)
+public sealed record ScreenshotModeOption(
+    string DisplayName,
+    ScreenshotMode Mode,
+    string? MonitorDeviceName = null,
+    IntPtr WindowHandle = default,
+    string? WindowTitle = null,
+    string? WindowProcessName = null,
+    bool IsPicker = false)
 {
     // The styled ComboBox shows the selected item via ToString(), which for a record would print its type name.
     public override string ToString() => DisplayName;
@@ -189,6 +196,11 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private async Task StartRecordingAsync()
     {
         await LoadSettingsAsync();
+        if (!PrepareCaptureWindow())
+        {
+            return;
+        }
+
         EnsureSession();
         StopHooks();
         _isRecording = true;

@@ -10,12 +10,18 @@ namespace OpenSteps.Capture;
 /// </summary>
 public sealed class VideoCaptureTarget
 {
-    private VideoCaptureTarget(Size frameSize, Func<Rectangle?> getSourceBounds, string description)
+    private VideoCaptureTarget(Size frameSize, Func<Rectangle?> getSourceBounds, string description, bool allowUpscale = true)
     {
         FrameSize = frameSize;
         GetSourceBounds = getSourceBounds;
         Description = description;
+        AllowUpscale = allowUpscale;
     }
+
+    /// <summary>
+    /// False for window recordings: a window that shrinks is shown at its real size, centred, rather than blown up.
+    /// </summary>
+    public bool AllowUpscale { get; }
 
     /// <summary>Size the video is laid out for (before any downscaling to the encoder limit).</summary>
     public Size FrameSize { get; }
@@ -33,6 +39,16 @@ public sealed class VideoCaptureTarget
     {
         var bounds = Rectangle.FromLTRB(monitor.BoundsLeft, monitor.BoundsTop, monitor.BoundsRight, monitor.BoundsBottom);
         return new VideoCaptureTarget(bounds.Size, () => bounds, description);
+    }
+
+    /// <summary>
+    /// Records one window's area on screen, following it as it moves or resizes. While the window is minimized
+    /// or closed the source is <see cref="Rectangle.Empty"/>, which makes the recorder hold the last frame.
+    /// </summary>
+    public static VideoCaptureTarget SingleWindow(IntPtr hwnd, string description)
+    {
+        var initial = WindowEnumerator.GetVisibleBounds(hwnd) ?? new Rectangle(0, 0, 1280, 720);
+        return new VideoCaptureTarget(initial.Size, () => WindowEnumerator.GetVisibleBounds(hwnd) ?? Rectangle.Empty, description, allowUpscale: false);
     }
 
     /// <summary>
@@ -77,7 +93,7 @@ public static class VideoFrameLayout
     }
 
     /// <summary>Where a source of <paramref name="source"/> size goes inside <paramref name="frame"/>: scaled to fit and centred.</summary>
-    public static Rectangle Fit(Size source, Size frame)
+    public static Rectangle Fit(Size source, Size frame, bool allowUpscale = true)
     {
         if (source.Width <= 0 || source.Height <= 0)
         {
@@ -85,6 +101,11 @@ public static class VideoFrameLayout
         }
 
         var scale = Math.Min(frame.Width / (double)source.Width, frame.Height / (double)source.Height);
+        if (!allowUpscale)
+        {
+            scale = Math.Min(1.0, scale);
+        }
+
         var width = Math.Min(frame.Width, (int)Math.Round(source.Width * scale));
         var height = Math.Min(frame.Height, (int)Math.Round(source.Height * scale));
         return new Rectangle((frame.Width - width) / 2, (frame.Height - height) / 2, width, height);

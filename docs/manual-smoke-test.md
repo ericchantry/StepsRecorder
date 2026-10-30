@@ -124,3 +124,14 @@ Use this checklist before demoing OpenSteps.
 3. Confirm only the click on the chosen monitor became a step, its screenshot shows only that monitor, the timeline has nothing from the other monitor, and the video shows only the chosen monitor.
 4. Pick **Active window**. Record clicks in a window on one monitor, then a window on another. Confirm each screenshot shows only the clicked window and the video switches to the second monitor when focus moves there.
 5. Unplug or disable the chosen monitor (or change display settings), reopen the Capture list, and confirm it falls back to the main monitor.
+
+## Single Window
+
+1. Open Excel (or Notepad) and another app. Open the **Capture** list and confirm open windows appear as **Window · <title>**, most recently used first, and that OpenSteps' own windows are not listed.
+2. Choose the Excel window. Confirm it is briefly outlined in blue when recording starts.
+3. Record a few clicks and some typing in Excel, move and resize the window, open a right-click menu, then click into another app.
+4. Stop. Confirm every screenshot shows only the Excel window (including the step from the other app), and the video follows the window as it moves.
+5. Minimize Excel while recording; confirm the video holds the last frame instead of showing what's behind it.
+6. Choose **Pick a window by clicking it…**, click a window's title bar, and confirm the banner disappears, the window is outlined and it is selected in the list. Try again and click **Cancel**; confirm the previous choice stays.
+7. Close the chosen window and press Record; confirm OpenSteps says the window is no longer open and does not start.
+8. Restart OpenSteps with the same window still open; confirm it is still selected.

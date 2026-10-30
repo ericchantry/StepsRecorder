@@ -21,6 +21,9 @@ public sealed class ScreenshotService
     /// <summary>Device name of the monitor captured in <see cref="ScreenshotMode.Monitor"/> mode.</summary>
     public string? SelectedMonitorDeviceName { get; set; }
 
+    /// <summary>Window captured in <see cref="ScreenshotMode.Window"/> mode.</summary>
+    public IntPtr SelectedWindowHandle { get; set; }
+
     public Task<string> CaptureVirtualDesktopAsync(string sessionDirectory, int stepIndex, int clickX, int clickY, CancellationToken cancellationToken = default)
     {
         return CaptureVirtualDesktopAsync(sessionDirectory, $"step-{stepIndex:000}.png", clickX, clickY, drawHighlight: true, cancellationToken);
@@ -103,6 +106,24 @@ public sealed class ScreenshotService
                 return CaptureSelectedMonitor(sessionDirectory, fileName, clickX, clickY, drawHighlight, cancellationToken);
             }
 
+            if (requestedMode == ScreenshotMode.Window)
+            {
+                try
+                {
+                    if (SelectedWindowHandle == IntPtr.Zero || WindowEnumerator.GetVisibleBounds(SelectedWindowHandle) is null)
+                    {
+                        throw new InvalidOperationException("The chosen window is closed or minimized.");
+                    }
+
+                    return CaptureActiveWindow(sessionDirectory, fileName, clickX, clickY, SelectedWindowHandle, drawHighlight, cancellationToken, ScreenshotMode.Window);
+                }
+                catch (Exception ex) when (ex is InvalidOperationException or IOException or System.Runtime.InteropServices.ExternalException or ArgumentException)
+                {
+                    var monitorShot = CaptureLegacy(sessionDirectory, fileName, clickX, clickY, ScreenshotCaptureMode.MonitorContainingClick, drawHighlight, cancellationToken);
+                    return ScreenshotFallbackFactory.WithFallbackMetadata(monitorShot, requestedMode, ex.Message);
+                }
+            }
+
             return CaptureFullDesktop(sessionDirectory, fileName, clickX, clickY, drawHighlight, cancellationToken);
         }, cancellationToken);
     }
@@ -143,7 +164,8 @@ public sealed class ScreenshotService
         int clickY,
         IntPtr targetHwnd,
         bool drawHighlight,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        ScreenshotMode reportedMode = ScreenshotMode.ActiveWindow)
     {
         cancellationToken.ThrowIfCancellationRequested();
 
@@ -180,8 +202,8 @@ public sealed class ScreenshotService
             LocalClickY = highlightY,
             ScreenshotWidth = bitmap.Width,
             ScreenshotHeight = bitmap.Height,
-            RequestedScreenshotMode = ScreenshotMode.ActiveWindow,
-            ActualScreenshotMode = ScreenshotMode.ActiveWindow,
+            RequestedScreenshotMode = reportedMode,
+            ActualScreenshotMode = reportedMode,
             UsedScreenshotFallback = false,
             CapturedBounds = new ScreenBounds(bounds.Left, bounds.Top, bounds.Width, bounds.Height),
             GlobalClickX = clickX,

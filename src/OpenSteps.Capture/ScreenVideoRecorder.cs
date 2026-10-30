@@ -76,7 +76,9 @@ public sealed class ScreenVideoRecorder : IAsyncDisposable
         var outputSize = VideoFrameLayout.OutputSize(_target.FrameSize);
         _outputWidth = outputSize.Width;
         _outputHeight = outputSize.Height;
-        _sourceBounds = _target.GetSourceBounds() ?? System.Windows.Forms.SystemInformation.VirtualScreen;
+        _sourceBounds = _target.GetSourceBounds() is { Width: > 0, Height: > 0 } initial
+            ? initial
+            : System.Windows.Forms.SystemInformation.VirtualScreen;
         _outputBitmap = new Bitmap(_outputWidth, _outputHeight, PixelFormat.Format32bppRgb);
 
         var input = VideoEncodingProperties.CreateUncompressed(MediaEncodingSubtypes.Bgra8, (uint)_outputWidth, (uint)_outputHeight);
@@ -255,11 +257,18 @@ public sealed class ScreenVideoRecorder : IAsyncDisposable
 
     private void CaptureFrame(byte[] destination)
     {
+        var freeze = false;
         try
         {
-            if (_target.GetSourceBounds() is { Width: > 0, Height: > 0 } bounds)
+            var resolved = _target.GetSourceBounds();
+            if (resolved is { Width: > 0, Height: > 0 } bounds)
             {
                 _sourceBounds = bounds;
+            }
+            else if (resolved is { IsEmpty: true })
+            {
+                // The recorded window is minimized or closed: hold the last frame rather than show what is behind it.
+                freeze = _captureBitmap is not null;
             }
         }
         catch
@@ -274,8 +283,9 @@ public sealed class ScreenVideoRecorder : IAsyncDisposable
         }
 
         var capture = _captureBitmap;
-        using (var graphics = Graphics.FromImage(capture))
+        if (!freeze)
         {
+            using var graphics = Graphics.FromImage(capture);
             try
             {
                 graphics.CopyFromScreen(_sourceBounds.X, _sourceBounds.Y, 0, 0, _sourceBounds.Size, CopyPixelOperation.SourceCopy);
@@ -292,7 +302,7 @@ public sealed class ScreenVideoRecorder : IAsyncDisposable
         var frame = capture;
         if (capture.Width != _outputWidth || capture.Height != _outputHeight)
         {
-            var target = VideoFrameLayout.Fit(capture.Size, new Size(_outputWidth, _outputHeight));
+            var target = VideoFrameLayout.Fit(capture.Size, new Size(_outputWidth, _outputHeight), _target.AllowUpscale);
             using var outputGraphics = Graphics.FromImage(_outputBitmap!);
             if (target.Width != _outputWidth || target.Height != _outputHeight)
             {

@@ -157,9 +157,10 @@
                           DisplayMemberPath="DisplayName"
                           SelectedItem="{Binding SelectedCaptureOption, Mode=TwoWay}"
                           DropDownOpened="CaptureModeCombo_DropDownOpened"
+                          MaxDropDownHeight="440"
                           Width="208"
                           Style="{StaticResource PillComboBox}"
-                          ToolTip="All monitors: screenshots and video show every monitor.&#x0a;A single monitor: only that monitor is recorded; clicks and typing on other monitors are ignored.&#x0a;Active window: screenshots show the window you are working in, and the video follows the monitor it is on." />
+                          ToolTip="All monitors: screenshots and video show every monitor.&#x0a;A single monitor: only that monitor is recorded; clicks and typing on other monitors are ignored.&#x0a;Active window: screenshots show the window you are working in, and the video follows the monitor it is on.&#x0a;Window · …: screenshots and video show only that window, wherever it is moved. Use Pick a window to click the one you want." />
 
                 <Rectangle Style="{StaticResource Divider}" />
 

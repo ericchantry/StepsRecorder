@@ -91,6 +91,22 @@ public sealed class VideoFrameLayoutTests
     }
 
     [Fact]
+    public void Fit_WithoutUpscaleCentresSmallerWindow()
+    {
+        var target = VideoFrameLayout.Fit(new System.Drawing.Size(800, 600), new System.Drawing.Size(1600, 1000), allowUpscale: false);
+
+        Assert.Equal(new System.Drawing.Rectangle(400, 200, 800, 600), target);
+    }
+
+    [Fact]
+    public void Fit_WithoutUpscaleStillShrinksLargerWindow()
+    {
+        var target = VideoFrameLayout.Fit(new System.Drawing.Size(3200, 2000), new System.Drawing.Size(1600, 1000), allowUpscale: false);
+
+        Assert.Equal(new System.Drawing.Rectangle(0, 0, 1600, 1000), target);
+    }
+
+    [Fact]
     public void Fit_SameSizeFillsFrame()
     {
         Assert.Equal(new System.Drawing.Rectangle(0, 0, 1920, 1080), VideoFrameLayout.Fit(new System.Drawing.Size(1920, 1080), new System.Drawing.Size(1920, 1080)));
@@ -110,10 +126,12 @@ public sealed class VideoCaptureTargetScreenTests
 
         var monitors = new MonitorService();
         var primary = monitors.GetAllMonitors().First(m => m.IsPrimary);
+        var window = WindowEnumerator.GetCapturableWindows((uint)Environment.ProcessId).First(w => !w.IsMinimized);
         foreach (var target in new[]
                  {
                      VideoCaptureTarget.SingleMonitor(primary, "primary"),
-                     VideoCaptureTarget.FollowActiveWindowMonitor(monitors)
+                     VideoCaptureTarget.FollowActiveWindowMonitor(monitors),
+                     VideoCaptureTarget.SingleWindow(window.Handle, window.Title)
                  })
         {
             var path = Path.Combine(Path.GetTempPath(), "OpenStepsTests", Guid.NewGuid().ToString("N"), "recording.mp4");

@@ -9,6 +9,7 @@ public sealed class ScreenshotModeLabelsTests
     [InlineData(ScreenshotMode.FullDesktop, "Full Desktop")]
     [InlineData(ScreenshotMode.ActiveWindow, "Active Window")]
     [InlineData(ScreenshotMode.Monitor, "Single Monitor")]
+    [InlineData(ScreenshotMode.Window, "Single Window")]
     public void GetDisplayText_ReturnsReadableModeName(ScreenshotMode mode, string expected)
     {
         Assert.Equal(expected, ScreenshotModeLabels.GetDisplayText(mode));
