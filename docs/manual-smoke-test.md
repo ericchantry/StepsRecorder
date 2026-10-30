@@ -116,3 +116,11 @@ Use this checklist before demoing OpenSteps.
 5. Click **Cancel**, choose **No**, and confirm recording continues. Click **Cancel** again, choose **Yes**, and confirm the recorder bar returns and no new guide was saved.
 6. Use **Record more steps** on an existing guide, record two clicks, then **Cancel** > **Yes**. Confirm the editor shows only the original steps.
 7. Start again and click **Stop**; confirm the editor opens with the new steps.
+
+## Capture Area (multiple monitors)
+
+1. Open the **Capture** list and confirm it shows **All monitors**, one **Display N · width×height** entry per monitor (the main one marked), and **Active window**.
+2. Pick one display. Record a click on that display and a click and some typing on another display. Stop.
+3. Confirm only the click on the chosen display became a step, its screenshot shows only that monitor, the timeline has nothing from the other display, and the video shows only the chosen monitor.
+4. Pick **Active window**. Record clicks in a window on one monitor, then a window on another. Confirm each screenshot shows only the clicked window and the video switches to the second monitor when focus moves there.
+5. Unplug or disable the chosen monitor (or change display settings), reopen the Capture list, and confirm it falls back to the main display.

@@ -4,7 +4,7 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d"
-        Title="OpenSteps" Height="76" Width="990" MinHeight="76" MinWidth="990"
+        Title="OpenSteps" Height="76" Width="1040" MinHeight="76" MinWidth="1040"
         WindowStyle="None" ResizeMode="NoResize" AllowsTransparency="True"
         Background="Transparent" Topmost="True">
     <Window.Resources>
@@ -155,11 +155,11 @@
                            Margin="0,0,8,0" />
                 <ComboBox ItemsSource="{Binding ScreenshotModeOptions}"
                           DisplayMemberPath="DisplayName"
-                          SelectedValuePath="Mode"
-                          SelectedValue="{Binding ScreenshotMode, Mode=TwoWay}"
-                          Width="158"
+                          SelectedItem="{Binding SelectedCaptureOption, Mode=TwoWay}"
+                          DropDownOpened="CaptureModeCombo_DropDownOpened"
+                          Width="208"
                           Style="{StaticResource PillComboBox}"
-                          ToolTip="Full desktop captures all visible monitors. Active window only captures the foreground window when possible and falls back to full desktop if needed." />
+                          ToolTip="All monitors: screenshots and video show every monitor.&#x0a;A single display: only that monitor is recorded; clicks and typing on other monitors are ignored.&#x0a;Active window: screenshots show the window you are working in, and the video follows the monitor it is on." />
 
                 <Rectangle Style="{StaticResource Divider}" />
 

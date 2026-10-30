@@ -16,6 +16,9 @@ public sealed class RecordingSegment
 
     public bool TypedTextCaptured { get; set; }
 
+    /// <summary>What the video covers, e.g. "All monitors", "Display 2 · 1920×1080".</summary>
+    public string? CaptureArea { get; set; }
+
     public string? VideoRelativePath { get; set; }
 
     [JsonIgnore]

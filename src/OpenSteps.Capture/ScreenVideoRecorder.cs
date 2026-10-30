@@ -15,19 +15,19 @@ namespace OpenSteps.Capture;
 public sealed record VideoRecordingResult(string Path, bool Succeeded, double DurationSeconds, int Width, int Height, string? Error);
 
 /// <summary>
-/// Records the whole virtual desktop to an H.264 MP4 using only built-in Windows components:
+/// Records the screen (all monitors, one monitor, or the active window's monitor; see <see cref="VideoCaptureTarget"/>)
+/// to an H.264 MP4 using only built-in Windows components:
 /// GDI screen frames are fed through a MediaStreamSource into MediaTranscoder.
 /// Frame timestamps come from the shared <see cref="RecordingClock"/>, so paused time is
 /// skipped and input-event offsets line up with the video.
 /// </summary>
 public sealed class ScreenVideoRecorder : IAsyncDisposable
 {
-    private const int MaxOutputWidth = 3840;
-    private const int MaxOutputHeight = 2160;
     private const int MaxPooledBuffers = 6;
     private static readonly TimeSpan ClickRingDuration = TimeSpan.FromMilliseconds(600);
 
     private readonly RecordingClock _clock;
+    private readonly VideoCaptureTarget _target;
     private readonly TimeSpan _frameDuration;
     private readonly object _poolSync = new();
     private readonly Stack<byte[]> _bufferPool = new();
@@ -37,7 +37,7 @@ public sealed class ScreenVideoRecorder : IAsyncDisposable
     private int _outputWidth;
     private int _outputHeight;
     private Bitmap? _captureBitmap;
-    private Bitmap? _scaledBitmap;
+    private Bitmap? _outputBitmap;
     private FileStream? _fileStream;
     private Task? _transcodeTask;
     private volatile bool _stopRequested;
@@ -47,9 +47,10 @@ public sealed class ScreenVideoRecorder : IAsyncDisposable
     private Exception? _frameError;
     private string _outputPath = string.Empty;
 
-    public ScreenVideoRecorder(RecordingClock clock, int framesPerSecond = 10)
+    public ScreenVideoRecorder(RecordingClock clock, int framesPerSecond = 10, VideoCaptureTarget? target = null)
     {
         _clock = clock;
+        _target = target ?? VideoCaptureTarget.AllMonitors();
         _frameDuration = TimeSpan.FromSeconds(1.0 / Math.Clamp(framesPerSecond, 1, 30));
         FramesPerSecond = Math.Clamp(framesPerSecond, 1, 30);
     }
@@ -72,16 +73,11 @@ public sealed class ScreenVideoRecorder : IAsyncDisposable
         _outputPath = outputPath;
         Directory.CreateDirectory(Path.GetDirectoryName(outputPath) ?? ".");
 
-        var virtualScreen = System.Windows.Forms.SystemInformation.VirtualScreen;
-        _sourceBounds = new Rectangle(virtualScreen.X, virtualScreen.Y, virtualScreen.Width & ~1, virtualScreen.Height & ~1);
-        var scale = Math.Min(1.0, Math.Min(MaxOutputWidth / (double)_sourceBounds.Width, MaxOutputHeight / (double)_sourceBounds.Height));
-        _outputWidth = Math.Max(2, (int)(_sourceBounds.Width * scale) & ~1);
-        _outputHeight = Math.Max(2, (int)(_sourceBounds.Height * scale) & ~1);
-        _captureBitmap = new Bitmap(_sourceBounds.Width, _sourceBounds.Height, PixelFormat.Format32bppRgb);
-        if (_outputWidth != _sourceBounds.Width || _outputHeight != _sourceBounds.Height)
-        {
-            _scaledBitmap = new Bitmap(_outputWidth, _outputHeight, PixelFormat.Format32bppRgb);
-        }
+        var outputSize = VideoFrameLayout.OutputSize(_target.FrameSize);
+        _outputWidth = outputSize.Width;
+        _outputHeight = outputSize.Height;
+        _sourceBounds = _target.GetSourceBounds() ?? System.Windows.Forms.SystemInformation.VirtualScreen;
+        _outputBitmap = new Bitmap(_outputWidth, _outputHeight, PixelFormat.Format32bppRgb);
 
         var input = VideoEncodingProperties.CreateUncompressed(MediaEncodingSubtypes.Bgra8, (uint)_outputWidth, (uint)_outputHeight);
         var source = new MediaStreamSource(new VideoStreamDescriptor(input))
@@ -151,8 +147,8 @@ public sealed class ScreenVideoRecorder : IAsyncDisposable
         await DisposeStreamAsync().ConfigureAwait(false);
         _captureBitmap?.Dispose();
         _captureBitmap = null;
-        _scaledBitmap?.Dispose();
-        _scaledBitmap = null;
+        _outputBitmap?.Dispose();
+        _outputBitmap = null;
 
         var succeeded = error is null && File.Exists(_outputPath) && new FileInfo(_outputPath).Length > 0;
         return new VideoRecordingResult(_outputPath, succeeded, Math.Max(0, _lastTimestamp.TotalSeconds), _outputWidth, _outputHeight, error);
@@ -167,7 +163,7 @@ public sealed class ScreenVideoRecorder : IAsyncDisposable
 
         await DisposeStreamAsync();
         _captureBitmap?.Dispose();
-        _scaledBitmap?.Dispose();
+        _outputBitmap?.Dispose();
     }
 
     private async Task<PrepareTranscodeResult?> PrepareAsync(MediaStreamSource source, MediaEncodingProfile profile, bool hardwareAcceleration)
@@ -259,7 +255,25 @@ public sealed class ScreenVideoRecorder : IAsyncDisposable
 
     private void CaptureFrame(byte[] destination)
     {
-        var capture = _captureBitmap!;
+        try
+        {
+            if (_target.GetSourceBounds() is { Width: > 0, Height: > 0 } bounds)
+            {
+                _sourceBounds = bounds;
+            }
+        }
+        catch
+        {
+            // Keep the previous area if the target cannot be resolved this frame.
+        }
+
+        if (_captureBitmap is null || _captureBitmap.Width != _sourceBounds.Width || _captureBitmap.Height != _sourceBounds.Height)
+        {
+            _captureBitmap?.Dispose();
+            _captureBitmap = new Bitmap(_sourceBounds.Width, _sourceBounds.Height, PixelFormat.Format32bppRgb);
+        }
+
+        var capture = _captureBitmap;
         using (var graphics = Graphics.FromImage(capture))
         {
             try
@@ -276,12 +290,18 @@ public sealed class ScreenVideoRecorder : IAsyncDisposable
         }
 
         var frame = capture;
-        if (_scaledBitmap is not null)
+        if (capture.Width != _outputWidth || capture.Height != _outputHeight)
         {
-            using var scaledGraphics = Graphics.FromImage(_scaledBitmap);
-            scaledGraphics.InterpolationMode = InterpolationMode.HighQualityBilinear;
-            scaledGraphics.DrawImage(capture, 0, 0, _outputWidth, _outputHeight);
-            frame = _scaledBitmap;
+            var target = VideoFrameLayout.Fit(capture.Size, new Size(_outputWidth, _outputHeight));
+            using var outputGraphics = Graphics.FromImage(_outputBitmap!);
+            if (target.Width != _outputWidth || target.Height != _outputHeight)
+            {
+                outputGraphics.Clear(Color.Black);
+            }
+
+            outputGraphics.InterpolationMode = InterpolationMode.HighQualityBilinear;
+            outputGraphics.DrawImage(capture, target);
+            frame = _outputBitmap!;
         }
 
         var data = frame.LockBits(new Rectangle(0, 0, _outputWidth, _outputHeight), ImageLockMode.ReadOnly, PixelFormat.Format32bppRgb);

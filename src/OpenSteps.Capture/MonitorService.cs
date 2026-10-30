@@ -18,6 +18,47 @@ public sealed class MonitorService
             ?? ReadMonitor(handle, all.Count + 1);
     }
 
+    /// <summary>The monitor with this Windows device name (\\.\DISPLAYn), or the primary monitor if it is no longer connected.</summary>
+    public DisplayMonitorInfo FindMonitor(string? deviceName)
+    {
+        var all = GetAllMonitors();
+        return all.FirstOrDefault(monitor => string.Equals(monitor.DeviceName, deviceName, StringComparison.OrdinalIgnoreCase))
+            ?? all.FirstOrDefault(monitor => monitor.IsPrimary)
+            ?? all.First();
+    }
+
+    /// <summary>The monitor that most of a window is on.</summary>
+    public DisplayMonitorInfo? GetMonitorForWindow(IntPtr hwnd)
+    {
+        if (hwnd == IntPtr.Zero)
+        {
+            return null;
+        }
+
+        var handle = NativeMethods.MonitorFromWindow(hwnd, NativeMethods.MONITOR_DEFAULTTONEAREST);
+        return handle == IntPtr.Zero ? null : GetAllMonitors().FirstOrDefault(monitor => monitor.MonitorHandle == handle);
+    }
+
+    /// <summary>Bounds of the monitor most of a window is on, without enumerating every monitor (cheap enough per video frame).</summary>
+    public static System.Drawing.Rectangle? GetMonitorBoundsForWindow(IntPtr hwnd)
+    {
+        var handle = NativeMethods.MonitorFromWindow(hwnd, NativeMethods.MONITOR_DEFAULTTONEAREST);
+        if (handle == IntPtr.Zero)
+        {
+            return null;
+        }
+
+        var info = new NativeMethods.MONITORINFOEX
+        {
+            Size = Marshal.SizeOf<NativeMethods.MONITORINFOEX>(),
+            DeviceName = string.Empty
+        };
+
+        return NativeMethods.GetMonitorInfo(handle, ref info)
+            ? System.Drawing.Rectangle.FromLTRB(info.Monitor.Left, info.Monitor.Top, info.Monitor.Right, info.Monitor.Bottom)
+            : null;
+    }
+
     public IReadOnlyList<DisplayMonitorInfo> GetAllMonitors()
     {
         var monitors = new List<DisplayMonitorInfo>();

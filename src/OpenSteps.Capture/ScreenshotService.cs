@@ -18,6 +18,9 @@ public sealed class ScreenshotService
         _windowBoundsService = windowBoundsService ?? new WindowBoundsService();
     }
 
+    /// <summary>Device name of the monitor captured in <see cref="ScreenshotMode.Monitor"/> mode.</summary>
+    public string? SelectedMonitorDeviceName { get; set; }
+
     public Task<string> CaptureVirtualDesktopAsync(string sessionDirectory, int stepIndex, int clickX, int clickY, CancellationToken cancellationToken = default)
     {
         return CaptureVirtualDesktopAsync(sessionDirectory, $"step-{stepIndex:000}.png", clickX, clickY, drawHighlight: true, cancellationToken);
@@ -89,9 +92,15 @@ public sealed class ScreenshotService
                 }
                 catch (Exception ex) when (ex is InvalidOperationException or IOException or System.Runtime.InteropServices.ExternalException or ArgumentException)
                 {
-                    var fullDesktop = CaptureFullDesktop(sessionDirectory, fileName, clickX, clickY, drawHighlight, cancellationToken);
-                    return ScreenshotFallbackFactory.WithFallbackMetadata(fullDesktop, requestedMode, ex.Message);
+                    // Fall back to the monitor that was clicked rather than every monitor.
+                    var monitorShot = CaptureLegacy(sessionDirectory, fileName, clickX, clickY, ScreenshotCaptureMode.MonitorContainingClick, drawHighlight, cancellationToken);
+                    return ScreenshotFallbackFactory.WithFallbackMetadata(monitorShot, requestedMode, ex.Message);
                 }
+            }
+
+            if (requestedMode == ScreenshotMode.Monitor)
+            {
+                return CaptureSelectedMonitor(sessionDirectory, fileName, clickX, clickY, drawHighlight, cancellationToken);
             }
 
             return CaptureFullDesktop(sessionDirectory, fileName, clickX, clickY, drawHighlight, cancellationToken);
@@ -184,6 +193,58 @@ public sealed class ScreenshotService
         };
     }
 
+    private ScreenshotCaptureResult CaptureSelectedMonitor(
+        string sessionDirectory,
+        string fileName,
+        int clickX,
+        int clickY,
+        bool drawHighlight,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var monitor = _monitorService.FindMonitor(SelectedMonitorDeviceName);
+        var bounds = Rectangle.FromLTRB(monitor.BoundsLeft, monitor.BoundsTop, monitor.BoundsRight, monitor.BoundsBottom);
+        var (localClickX, localClickY) = MonitorCoordinateMapper.ToLocalPoint(clickX, clickY, bounds.Left, bounds.Top);
+        var highlightInside = ScreenshotCoordinateMapper.IsInsideCapturedBounds(localClickX, localClickY, bounds.Width, bounds.Height);
+        var filePath = Path.Combine(sessionDirectory, fileName);
+
+        using var bitmap = new Bitmap(bounds.Width, bounds.Height, PixelFormat.Format32bppArgb);
+        using (var graphics = Graphics.FromImage(bitmap))
+        {
+            graphics.CopyFromScreen(bounds.Left, bounds.Top, 0, 0, bounds.Size, CopyPixelOperation.SourceCopy);
+            if (drawHighlight && highlightInside)
+            {
+                DrawClickHighlight(graphics, localClickX, localClickY);
+            }
+        }
+
+        bitmap.Save(filePath, ImageFormat.Png);
+        return new ScreenshotCaptureResult
+        {
+            FilePath = filePath,
+            CaptureMode = ScreenshotCaptureMode.MonitorContainingClick,
+            Monitor = monitor,
+            CaptureLeft = bounds.Left,
+            CaptureTop = bounds.Top,
+            CaptureRight = bounds.Right,
+            CaptureBottom = bounds.Bottom,
+            LocalClickX = localClickX,
+            LocalClickY = localClickY,
+            ScreenshotWidth = bitmap.Width,
+            ScreenshotHeight = bitmap.Height,
+            RequestedScreenshotMode = ScreenshotMode.Monitor,
+            ActualScreenshotMode = ScreenshotMode.Monitor,
+            UsedScreenshotFallback = false,
+            CapturedBounds = new ScreenBounds(bounds.Left, bounds.Top, bounds.Width, bounds.Height),
+            GlobalClickX = clickX,
+            GlobalClickY = clickY,
+            HighlightX = localClickX,
+            HighlightY = localClickY,
+            HighlightWasInsideCapturedBounds = highlightInside,
+            BoundsSource = $"SelectedMonitor {monitor.DeviceName}"
+        };
+    }
+
     private ScreenshotCaptureResult CaptureFullDesktop(
         string sessionDirectory,
         string fileName,
@@ -239,7 +300,7 @@ public sealed class ScreenshotService
             ScreenshotWidth = bitmap.Width,
             ScreenshotHeight = bitmap.Height,
             RequestedScreenshotMode = ScreenshotMode.FullDesktop,
-            ActualScreenshotMode = ScreenshotMode.FullDesktop,
+            ActualScreenshotMode = captureMode == ScreenshotCaptureMode.MonitorContainingClick ? ScreenshotMode.Monitor : ScreenshotMode.FullDesktop,
             UsedScreenshotFallback = false,
             CapturedBounds = new ScreenBounds(bounds.Left, bounds.Top, bounds.Width, bounds.Height),
             GlobalClickX = clickX,

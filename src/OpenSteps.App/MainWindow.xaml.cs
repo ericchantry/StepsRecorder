@@ -14,7 +14,7 @@ using WinForms = System.Windows.Forms;
 
 namespace OpenSteps.App;
 
-public sealed record ScreenshotModeOption(string DisplayName, ScreenshotMode Mode)
+public sealed record ScreenshotModeOption(string DisplayName, ScreenshotMode Mode, string? MonitorDeviceName = null)
 {
     // The styled ComboBox shows the selected item via ToString(), which for a record would print its type name.
     public override string ToString() => DisplayName;
@@ -81,11 +81,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
     public ObservableCollection<RecordedStep> Steps { get; } = [];
 
-    public ScreenshotModeOption[] ScreenshotModeOptions { get; } =
-    [
-        new("Full Desktop", ScreenshotMode.FullDesktop),
-        new("Active Window", ScreenshotMode.ActiveWindow)
-    ];
+    public ObservableCollection<ScreenshotModeOption> ScreenshotModeOptions { get; } = [];
 
     public ScreenshotMode ScreenshotMode
     {
@@ -110,7 +106,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         }
     }
 
-    public string ScreenshotModeDisplayText => ScreenshotModeLabels.GetDisplayText(ScreenshotMode);
+    public string ScreenshotModeDisplayText => GetCaptureAreaLabel();
 
     public string CaptureModeLabel => $"Capturing: {ScreenshotModeDisplayText}";
 
@@ -123,6 +119,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         {
             _settings = await _settingsService.LoadAsync();
             ScreenshotMode = _settings.ScreenshotMode;
+            _captureMonitorDeviceName = _settings.CaptureMonitorDeviceName;
+            RefreshCaptureOptions();
             RefreshPolicy();
         }
         finally
@@ -272,6 +270,12 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         string? doubleClickDetectionReason,
         double? videoOffset = null)
     {
+        if (IsOutsideCaptureMonitor(x, y))
+        {
+            // Single-monitor mode: clicks on other monitors are not recorded at all.
+            return;
+        }
+
         var openStepsHandles = GetOpenStepsWindowHandles();
         var immediateTarget = _clickTargetClassifier.ClassifyPoint(x, y, openStepsHandles);
 
@@ -407,7 +411,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
     private async Task HandleKeyboardInputAsync(KeyboardInputEventArgs input, double? videoOffset = null)
     {
-        if (!_isRecording || _isPaused || ShouldIgnoreKeyboard())
+        if (!_isRecording || _isPaused || ShouldIgnoreKeyboard() || IsForegroundOutsideCaptureMonitor())
         {
             return;
         }
