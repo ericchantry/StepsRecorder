@@ -244,8 +244,8 @@ public sealed class RecordingExportTests
         var html = await File.ReadAllTextAsync(result.HtmlPath);
         Assert.Contains("<video id=\"video-1\" data-seg=\"1\" src=\"videos/recording-1.mp4\"", html);
         Assert.Contains("data-seg=\"1\" data-t=\"5\"", html);
-        Assert.Contains("Pressed Ctrl+S", html);
-        Assert.Contains("Typed &#x27;&lt;b&gt;&#x27;", html);
+        Assert.Contains(System.Text.Encodings.Web.HtmlEncoder.Default.Encode("Pressed Ctrl+S"), html);
+        Assert.Contains(System.Text.Encodings.Web.HtmlEncoder.Default.Encode("Typed '<b>'"), html);
         Assert.DoesNotContain("'<b>'", html);
         Assert.Contains("Windows 11 Pro 24H2", html);
 
@@ -280,7 +280,7 @@ public sealed class RecordingExportTests
         Assert.False(Directory.Exists(Path.Combine(result.ExportFolder, "videos")));
         var html = await File.ReadAllTextAsync(result.HtmlPath);
         Assert.DoesNotContain("<video", html);
-        Assert.DoesNotContain("Pressed Ctrl+C", html);
+        Assert.DoesNotContain(System.Text.Encodings.Web.HtmlEncoder.Default.Encode("Pressed Ctrl+C"), html);
         Assert.DoesNotContain("<script>", html);
     }
 }
