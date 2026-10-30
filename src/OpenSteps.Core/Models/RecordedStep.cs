@@ -179,6 +179,21 @@ public sealed class RecordedStep
 
     public bool TypedCharactersStored { get; set; }
 
+    /// <summary>Text typed during a text-entry step. Null when typed-text capture was off or the field was sensitive.</summary>
+    public string? TypedText { get; set; }
+
+    /// <summary>Recording segment this step belongs to, for jumping to the video. Null for manual steps.</summary>
+    public int? VideoSegment { get; set; }
+
+    /// <summary>Seconds from the start of <see cref="VideoSegment"/> when this step happened.</summary>
+    public double? VideoOffsetSeconds { get; set; }
+
+    [JsonIgnore]
+    public bool HasVideoOffset => VideoSegment.HasValue && VideoOffsetSeconds.HasValue;
+
+    [JsonIgnore]
+    public string VideoOffsetLabel => VideoOffsetSeconds.HasValue ? Services.TimeFormat.Format(VideoOffsetSeconds.Value) : string.Empty;
+
     public string DisplayTitle => string.IsNullOrWhiteSpace(UserTitle) ? GeneratedTitle : UserTitle!;
 
     public string MetadataSummary
@@ -217,6 +232,7 @@ public sealed class RecordedStep
                 $"Input target control: {InputTargetControlType ?? "(unknown)"}",
                 $"Sensitive input: {(IsSensitiveInput ? "yes" : "no")}",
                 $"Typed characters stored: {(TypedCharactersStored ? "yes" : "no")}",
+                $"Video position: {(HasVideoOffset ? $"segment {VideoSegment}, {VideoOffsetLabel}" : "(none)")}",
                 $"Virtual screen: {FormatBounds(VirtualScreenBounds)}",
                 $"Screenshot size: {FormatSize(ScreenshotWidth, ScreenshotHeight)}",
                 $"Active window bounds: {FormatBounds(WindowBounds)}",

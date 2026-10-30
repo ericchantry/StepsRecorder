@@ -14,7 +14,11 @@ using WinForms = System.Windows.Forms;
 
 namespace OpenSteps.App;
 
-public sealed record ScreenshotModeOption(string DisplayName, ScreenshotMode Mode);
+public sealed record ScreenshotModeOption(string DisplayName, ScreenshotMode Mode)
+{
+    // The styled ComboBox shows the selected item via ToString(), which for a record would print its type name.
+    public override string ToString() => DisplayName;
+}
 
 public partial class MainWindow : Window, INotifyPropertyChanged
 {
@@ -119,6 +123,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         {
             _settings = await _settingsService.LoadAsync();
             ScreenshotMode = _settings.ScreenshotMode;
+            RefreshPolicy();
         }
         finally
         {
@@ -162,6 +167,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private void PauseRecording_Click(object sender, RoutedEventArgs e)
     {
         _isPaused = !_isPaused;
+        SyncClockWithPause();
         RefreshRecordingStatus();
     }
 
@@ -193,14 +199,21 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         try
         {
             _recordingStartedAt = DateTimeOffset.Now;
+            if (_screenshotCaptureTargetStep is null)
+            {
+                await BeginTimelineSegmentAsync();
+            }
+
             _recordingStatusTimer.Start();
             RefreshRecordingStatus();
 
             _mouseHook = new GlobalMouseHook(ShouldIgnoreClick);
             _mouseHook.ClickCaptured += MouseHook_ClickCaptured;
+            _mouseHook.ButtonPressed += MouseHook_ButtonPressed;
+            _mouseHook.PointerActivityCaptured += MouseHook_PointerActivityCaptured;
             _mouseHook.Start();
 
-            _keyboardHook = new GlobalKeyboardHook(ShouldIgnoreKeyboard);
+            _keyboardHook = new GlobalKeyboardHook(ShouldIgnoreKeyboard, () => CaptureTypedText && _screenshotCaptureTargetStep is null);
             _keyboardHook.KeyboardInputCaptured += KeyboardHook_KeyboardInputCaptured;
             _keyboardHook.Start();
 
@@ -211,6 +224,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         {
             _isRecording = false;
             _isPaused = false;
+            StopHooks();
+            await EndTimelineSegmentAsync();
             RefreshRecordingStatus();
             HideRecordingTray();
             Show();
@@ -233,7 +248,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             return;
         }
 
-        Dispatcher.BeginInvoke(async () => await HandleCapturedClickAsync(e.X, e.Y, e.ActionType, e.MouseButton, e.ClickCount, e.DoubleClickDetectionReason));
+        var offset = OffsetAt(e.Timestamp);
+        Dispatcher.BeginInvoke(async () => await HandleCapturedClickAsync(e.X, e.Y, e.ActionType, e.MouseButton, e.ClickCount, e.DoubleClickDetectionReason, offset));
     }
 
     private void KeyboardHook_KeyboardInputCaptured(object? sender, KeyboardInputEventArgs e)
@@ -243,7 +259,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             return;
         }
 
-        Dispatcher.BeginInvoke(async () => await HandleKeyboardInputAsync(e));
+        var offset = OffsetAt(e.Timestamp);
+        Dispatcher.BeginInvoke(async () => await HandleKeyboardInputAsync(e, offset));
     }
 
     private async Task HandleCapturedClickAsync(
@@ -252,10 +269,16 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         StepActionType actionType,
         string mouseButton,
         int clickCount,
-        string? doubleClickDetectionReason)
+        string? doubleClickDetectionReason,
+        double? videoOffset = null)
     {
         var openStepsHandles = GetOpenStepsWindowHandles();
         var immediateTarget = _clickTargetClassifier.ClassifyPoint(x, y, openStepsHandles);
+
+        if (immediateTarget.Classification != ClickClassification.OpenStepsWindow)
+        {
+            AddClickEvent(actionType, x, y, videoOffset, immediateTarget.RootHwnd);
+        }
 
         if (immediateTarget.Classification is ClickClassification.OpenStepsWindow or ClickClassification.TaskbarOrShell)
         {
@@ -283,7 +306,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             return;
         }
 
-        await CaptureStepAsync(x, y, resolution, actionType, mouseButton, clickCount, doubleClickDetectionReason);
+        await CaptureStepAsync(x, y, resolution, actionType, mouseButton, clickCount, doubleClickDetectionReason, videoOffset);
     }
 
     private async Task CaptureStepAsync(
@@ -293,7 +316,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         StepActionType actionType = StepActionType.Click,
         string mouseButton = "Left",
         int clickCount = 1,
-        string? doubleClickDetectionReason = null)
+        string? doubleClickDetectionReason = null,
+        double? videoOffset = null)
     {
         if (!await _captureLock.WaitAsync(0))
         {
@@ -315,6 +339,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                 VirtualScreenBounds = GetVirtualScreenBounds(),
                 ProcessDpiAwareness = _dpiAwarenessService.GetCurrentThreadAwareness()
             };
+            StampStep(step, videoOffset);
 
             try
             {
@@ -380,7 +405,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         }
     }
 
-    private async Task HandleKeyboardInputAsync(KeyboardInputEventArgs input)
+    private async Task HandleKeyboardInputAsync(KeyboardInputEventArgs input, double? videoOffset = null)
     {
         if (!_isRecording || _isPaused || ShouldIgnoreKeyboard())
         {
@@ -389,13 +414,37 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
         if (input.Kind == KeyboardInputKind.Text)
         {
-            AddTextKeyToPendingStep();
+            var sensitive = _focusInspector.IsFocusSensitive();
+            AddKeyboardEvent(InputEventKind.KeyText, null, input.Text, sensitive, videoOffset);
+            AddTextKeyToPendingStep(input.Text, sensitive, videoOffset);
             return;
         }
+
+        if (input.Kind == KeyboardInputKind.TimelineOnly)
+        {
+            AddKeyboardEvent(InputEventKind.Key, input.KeyName, null, false, videoOffset);
+            return;
+        }
+
+        if (input.Kind == KeyboardInputKind.SpecialKey && input.KeyName == "Backspace" && _pendingTypingStep is not null)
+        {
+            AddKeyboardEvent(InputEventKind.Key, input.KeyName, null, false, videoOffset);
+            RemoveLastCharacterFromPendingStep();
+            return;
+        }
+
+        AddKeyboardEvent(
+            input.Kind == KeyboardInputKind.Shortcut ? InputEventKind.Shortcut : InputEventKind.Key,
+            input.ShortcutName ?? input.KeyName,
+            null,
+            false,
+            videoOffset);
+        _focusInspector.Invalidate();
 
         await FinalizePendingTypingAsync();
         var actionType = input.Kind == KeyboardInputKind.Shortcut ? StepActionType.Shortcut : StepActionType.SpecialKey;
         var step = CreateKeyboardActionStep(actionType, input.KeyName, input.ShortcutName);
+        StampStep(step, videoOffset);
         Steps.Add(step);
         RenumberSteps();
         RefreshRecordingStatus();
@@ -403,7 +452,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         await RefreshKeyboardActionScreenshotAsync(step);
     }
 
-    private void AddTextKeyToPendingStep()
+    private void AddTextKeyToPendingStep(string? text, bool sensitive, double? videoOffset)
     {
         var isNewTypingRun = _pendingTypingStep is null;
         var step = _pendingTypingStep ?? CreateOrUpdateTextEntryStep();
@@ -411,13 +460,58 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         if (isNewTypingRun)
         {
             _pendingTypingKeyCount = step.KeyCount ?? 0;
+            _pendingTypedText.Clear();
+            _pendingTypedText.Append(step.TypedText);
+            if (!step.VideoOffsetSeconds.HasValue)
+            {
+                StampStep(step, videoOffset);
+            }
         }
 
         _pendingTypingKeyCount++;
         step.KeyboardInputDetected = true;
-        step.TypedCharactersStored = false;
-        step.KeyCount = step.IsSensitiveInput ? null : _pendingTypingKeyCount;
+        if (sensitive)
+        {
+            step.IsSensitiveInput = true;
+        }
 
+        if (step.IsSensitiveInput)
+        {
+            _pendingTypedText.Clear();
+            step.TypedText = null;
+            step.TypedCharactersStored = false;
+        }
+        else if (text is not null)
+        {
+            _pendingTypedText.Append(text);
+            step.TypedText = _pendingTypedText.Text;
+            step.TypedCharactersStored = true;
+        }
+
+        step.KeyCount = step.IsSensitiveInput ? null : _pendingTypingKeyCount;
+        UpdatePendingTypingTitle(step);
+    }
+
+    private void RemoveLastCharacterFromPendingStep()
+    {
+        if (_pendingTypingStep is not { } step)
+        {
+            return;
+        }
+
+        _pendingTypingKeyCount++;
+        step.KeyCount = step.IsSensitiveInput ? null : _pendingTypingKeyCount;
+        if (!step.IsSensitiveInput && step.TypedCharactersStored)
+        {
+            _pendingTypedText.Backspace();
+            step.TypedText = _pendingTypedText.Length == 0 ? null : _pendingTypedText.Text;
+        }
+
+        UpdatePendingTypingTitle(step);
+    }
+
+    private void UpdatePendingTypingTitle(RecordedStep step)
+    {
         var title = _titleGenerator.GenerateWithReason(step);
         step.GeneratedTitle = title.Title;
         step.GeneratedTitleReason = title.Reason;
@@ -577,6 +671,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
         _pendingTypingStep = null;
         _pendingTypingKeyCount = 0;
+        _pendingTypedText.Clear();
         RefreshStepViews();
     }
 
@@ -588,6 +683,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         _recordingStatusTimer.Stop();
         StopHooks();
         HideRecordingTray();
+        await EndTimelineSegmentAsync();
         await RemoveTrailingStopNoiseStepAsync();
 
         ShowSessionEditor();
@@ -596,7 +692,10 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
     internal async Task ExportMarkdownFromEditorAsync()
     {
-        var options = new ExportOptionsWindow
+        var options = new ExportOptionsWindow(
+            hasVideo: _session.Segments.Any(segment => segment.HasVideo),
+            hasInputLog: _session.InputEvents.Count > 0,
+            hasEnvironment: _session.Environment is not null)
         {
             Owner = _editorWindow
         };
@@ -622,7 +721,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             SyncSessionOrder();
             _session.Title = GetCurrentSessionTitle();
             await SaveSessionAsync(showMessage: false);
-            var result = await _markdownExporter.ExportAsync(_session, dialog.SelectedPath, options.SelectedFormats);
+            var result = await _markdownExporter.ExportAsync(_session, dialog.SelectedPath, options.SelectedFormats, options.SelectedOptions);
             new ExportResultWindow(result)
             {
                 Owner = _editorWindow
@@ -1130,6 +1229,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private async void MainWindow_Closing(object? sender, CancelEventArgs e)
     {
         StopHooks();
+        StopVideoForShutdown();
+        _reviewWindow?.Close();
         if (_trayIcon is not null)
         {
             _trayIcon.Visible = false;
@@ -1337,7 +1438,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
         if (_isRecording)
         {
-            var elapsed = DateTimeOffset.Now - _recordingStartedAt;
+            var elapsed = _currentSegment is not null ? _clock.Elapsed : DateTimeOffset.Now - _recordingStartedAt;
             var state = _isPaused ? "Paused" : "Recording";
             var stepLabel = Steps.Count == 1 ? "step" : "steps";
             RecordingStatusText.Text = $"{state} - {ScreenshotModeDisplayText} - {elapsed:mm\\:ss} - {Steps.Count} {stepLabel}";
@@ -1372,6 +1473,14 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         _trayPauseItem.Click += (_, _) => TrayTogglePause();
         menu.Items.Add(_trayPauseItem);
 
+        _trayTypedTextItem = new WinForms.ToolStripMenuItem("Record typed text")
+        {
+            Checked = CaptureTypedText,
+            Enabled = IsTypedTextOptionEnabled
+        };
+        _trayTypedTextItem.Click += (_, _) => ToggleTypedTextFromTray();
+        menu.Items.Add(_trayTypedTextItem);
+
         menu.Items.Add(new WinForms.ToolStripSeparator());
 
         var showItem = new WinForms.ToolStripMenuItem("Show recorder");
@@ -1398,6 +1507,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
         _trayIcon.Visible = true;
         _trayIcon.Text = "OpenSteps — Recording";
+        RaiseRecordingOptionsChanged();
         if (_trayPauseItem is not null)
         {
             _trayPauseItem.Text = "Pause recording";
@@ -1465,6 +1575,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         Dispatcher.Invoke(() =>
         {
             _isPaused = !_isPaused;
+            SyncClockWithPause();
             RefreshRecordingStatus();
         });
     }
@@ -1533,6 +1644,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             if (_mouseHook is not null)
             {
                 _mouseHook.ClickCaptured -= MouseHook_ClickCaptured;
+                _mouseHook.ButtonPressed -= MouseHook_ButtonPressed;
+                _mouseHook.PointerActivityCaptured -= MouseHook_PointerActivityCaptured;
                 _mouseHook.Dispose();
             }
         }

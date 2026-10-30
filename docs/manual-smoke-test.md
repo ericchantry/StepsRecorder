@@ -85,3 +85,24 @@ Use this checklist before demoing OpenSteps.
 - Elevated/admin apps may block metadata or hook behavior when OpenSteps is not also elevated.
 - Full-screen apps may hide the recorder or interfere with global hooks.
 - Screenshots can include private data. Review steps before sharing or exporting.
+
+## Video And Input Timeline
+
+1. On the recorder bar, leave **Video** and **Typed text** checked and start recording.
+2. In Notepad type `hello wrold`, press Backspace three times, type `rld`, then press Ctrl+S and Escape.
+3. Click into a browser's password field and type a few characters.
+4. Scroll a long page, drag a window by its title bar, and middle-click a link.
+5. Pause for 10 seconds, resume, then stop.
+6. In the editor, confirm the text step reads `Type 'hello world' ...` and the password step reads `Enter hidden text`.
+7. Click **Video & timeline**. Confirm the video plays, the timeline shows `Typed 'hello world'` with `Keys: hello wrold⌫⌫⌫rld`, `Pressed Ctrl+S`, `Typed hidden text (n keys)`, scroll, drag and middle-click rows.
+8. Click a timeline row and confirm the video jumps there; play and confirm the current row highlights. Confirm the 10-second pause is not in the video.
+9. Click the time button on a step card and confirm the review window opens at that step.
+10. From the tray icon, untick **Record typed text** mid-recording; confirm later typing shows `Typed n keys (text not recorded)`.
+11. Export HTML with video and **Also create a .zip**; open `guide.html`, click a timeline row and a step's **Watch at** button.
+
+## Install Scripts (no admin)
+
+1. Run `.\build\Publish-OpenSteps.ps1` and extract the zip as a standard (non-admin) user.
+2. Run `install.cmd`. Confirm the Start Menu shortcut, the Settings > Apps entry, and `%LOCALAPPDATA%\Programs\OpenSteps`.
+3. Run `install.cmd` again; confirm the log says the version is already installed.
+4. Run `uninstall.cmd -Quiet`; confirm the shortcut, Apps entry and install folder are gone and `%LOCALAPPDATA%\OpenSteps\Sessions` is kept.

@@ -1,7 +1,7 @@
 <Window x:Class="OpenSteps.App.ExportOptionsWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Export options" Width="540" Height="420" MinWidth="460" MinHeight="360"
+        Title="Export options" Width="560" Height="640" MinWidth="460" MinHeight="420"
         WindowStartupLocation="CenterOwner"
         ResizeMode="CanResize"
         Background="{StaticResource AppBackgroundBrush}">
@@ -46,7 +46,52 @@
                             <CheckBox x:Name="HtmlCheckBox" IsChecked="True">
                                 <StackPanel>
                                     <TextBlock Text="HTML (.html)" FontWeight="SemiBold" />
-                                    <TextBlock Text="Self-contained page that opens in any browser."
+                                    <TextBlock Text="Opens in any browser. Includes the video player with a clickable keyboard and mouse timeline."
+                                               Style="{StaticResource SubtleText}"
+                                               TextWrapping="Wrap"
+                                               FontSize="12"
+                                               Margin="0,2,0,0" />
+                                </StackPanel>
+                            </CheckBox>
+
+                            <TextBlock Text="ALSO INCLUDE"
+                                       Style="{StaticResource CaptionText}"
+                                       Margin="0,20,0,8" />
+                            <CheckBox x:Name="VideoCheckBox" IsChecked="True">
+                                <StackPanel>
+                                    <TextBlock Text="Session video (.mp4)" FontWeight="SemiBold" />
+                                    <TextBlock x:Name="VideoDescription"
+                                               Text="Copied into a /videos folder. Steps link to their moment in the video."
+                                               Style="{StaticResource SubtleText}"
+                                               TextWrapping="Wrap"
+                                               FontSize="12"
+                                               Margin="0,2,0,0" />
+                                </StackPanel>
+                            </CheckBox>
+                            <CheckBox x:Name="InputLogCheckBox" IsChecked="True" Margin="0,10,0,0">
+                                <StackPanel>
+                                    <TextBlock Text="Keyboard and mouse timeline" FontWeight="SemiBold" />
+                                    <TextBlock Text="Every click, scroll, key, shortcut and typed text with timestamps. Sensitive fields stay masked."
+                                               Style="{StaticResource SubtleText}"
+                                               TextWrapping="Wrap"
+                                               FontSize="12"
+                                               Margin="0,2,0,0" />
+                                </StackPanel>
+                            </CheckBox>
+                            <CheckBox x:Name="EnvironmentCheckBox" IsChecked="True" Margin="0,10,0,0">
+                                <StackPanel>
+                                    <TextBlock Text="System details" FontWeight="SemiBold" />
+                                    <TextBlock Text="Windows version, displays and scaling, language and keyboard layout. No user or computer names."
+                                               Style="{StaticResource SubtleText}"
+                                               TextWrapping="Wrap"
+                                               FontSize="12"
+                                               Margin="0,2,0,0" />
+                                </StackPanel>
+                            </CheckBox>
+                            <CheckBox x:Name="ZipCheckBox" IsChecked="False" Margin="0,10,0,0">
+                                <StackPanel>
+                                    <TextBlock Text="Also create a .zip" FontWeight="SemiBold" />
+                                    <TextBlock Text="One file to attach to a ticket or email."
                                                Style="{StaticResource SubtleText}"
                                                TextWrapping="Wrap"
                                                FontSize="12"

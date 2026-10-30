@@ -12,7 +12,9 @@ public sealed class GlobalMouseHook : IDisposable
     private readonly int _doubleClickHeight;
     private readonly Func<int, int, bool> _shouldIgnoreClick;
     private readonly NativeMethods.LowLevelHookProc _callback;
+    private readonly int _dragThreshold;
     private PendingLeftClick? _pendingLeftClick;
+    private (int X, int Y, DateTimeOffset Timestamp)? _leftButtonDown;
     private System.Threading.Timer? _pendingLeftClickTimer;
     private IntPtr _hookHandle;
 
@@ -23,9 +25,16 @@ public sealed class GlobalMouseHook : IDisposable
         _doubleClickTime = TimeSpan.FromMilliseconds(Math.Clamp(NativeMethods.GetDoubleClickTime(), 250, 900));
         _doubleClickWidth = Math.Max(4, NativeMethods.GetSystemMetrics(NativeMethods.SM_CXDOUBLECLK));
         _doubleClickHeight = Math.Max(4, NativeMethods.GetSystemMetrics(NativeMethods.SM_CYDOUBLECLK));
+        _dragThreshold = 16;
     }
 
     public event EventHandler<ClickCapturedEventArgs>? ClickCaptured;
+
+    /// <summary>Raised immediately on every left/right/middle button press (before double-click grouping), on the hook thread.</summary>
+    public event Action<int, int>? ButtonPressed;
+
+    /// <summary>Middle clicks, wheel scrolls and drags, for the input timeline.</summary>
+    public event EventHandler<PointerActivityEventArgs>? PointerActivityCaptured;
 
     public bool IsRunning => _hookHandle != IntPtr.Zero;
 
@@ -62,32 +71,89 @@ public sealed class GlobalMouseHook : IDisposable
 
     private IntPtr HookCallback(int nCode, IntPtr wParam, IntPtr lParam)
     {
-        if (nCode >= 0 && (wParam == NativeMethods.WM_LBUTTONDOWN || wParam == NativeMethods.WM_RBUTTONDOWN))
+        if (nCode >= 0)
         {
-            var data = Marshal.PtrToStructure<NativeMethods.MSLLHOOKSTRUCT>(lParam);
-            if (!_shouldIgnoreClick(data.Pt.X, data.Pt.Y))
+            try
             {
-                if (wParam == NativeMethods.WM_RBUTTONDOWN)
-                {
-                    FlushPendingLeftClick();
-                    ClickCaptured?.Invoke(this, new ClickCapturedEventArgs(data.Pt.X, data.Pt.Y, StepActionType.RightClick, "Right"));
-                }
-                else
-                {
-                    HandleLeftClick(data.Pt.X, data.Pt.Y);
-                }
+                HandleMouseMessage(wParam, lParam);
+            }
+            catch
+            {
+                // Mouse capture should never interrupt the target application or the hook chain.
             }
         }
 
         return NativeMethods.CallNextHookEx(_hookHandle, nCode, wParam, lParam);
     }
 
-    private void HandleLeftClick(int x, int y)
+    private void HandleMouseMessage(IntPtr wParam, IntPtr lParam)
+    {
+        var message = (int)wParam;
+        if (message is not (NativeMethods.WM_LBUTTONDOWN or NativeMethods.WM_RBUTTONDOWN or NativeMethods.WM_LBUTTONUP
+            or NativeMethods.WM_MBUTTONDOWN or NativeMethods.WM_MOUSEWHEEL or NativeMethods.WM_MOUSEHWHEEL))
+        {
+            return;
+        }
+
+        var data = Marshal.PtrToStructure<NativeMethods.MSLLHOOKSTRUCT>(lParam);
+        var now = DateTimeOffset.UtcNow;
+        if (message == NativeMethods.WM_LBUTTONUP)
+        {
+            HandleLeftButtonUp(data.Pt.X, data.Pt.Y, now);
+            return;
+        }
+
+        if (_shouldIgnoreClick(data.Pt.X, data.Pt.Y))
+        {
+            return;
+        }
+
+        if (message is NativeMethods.WM_LBUTTONDOWN or NativeMethods.WM_RBUTTONDOWN or NativeMethods.WM_MBUTTONDOWN)
+        {
+            ButtonPressed?.Invoke(data.Pt.X, data.Pt.Y);
+        }
+
+        switch (message)
+        {
+            case NativeMethods.WM_RBUTTONDOWN:
+                FlushPendingLeftClick();
+                ClickCaptured?.Invoke(this, new ClickCapturedEventArgs(data.Pt.X, data.Pt.Y, StepActionType.RightClick, "Right", timestamp: now));
+                break;
+            case NativeMethods.WM_LBUTTONDOWN:
+                _leftButtonDown = (data.Pt.X, data.Pt.Y, now);
+                HandleLeftClick(data.Pt.X, data.Pt.Y, now);
+                break;
+            case NativeMethods.WM_MBUTTONDOWN:
+                PointerActivityCaptured?.Invoke(this, new PointerActivityEventArgs(InputEventKind.MiddleClick, data.Pt.X, data.Pt.Y, now));
+                break;
+            case NativeMethods.WM_MOUSEWHEEL:
+            case NativeMethods.WM_MOUSEHWHEEL:
+                var delta = (short)((data.MouseData >> 16) & 0xFFFF);
+                var kind = message == NativeMethods.WM_MOUSEWHEEL ? InputEventKind.Scroll : InputEventKind.HorizontalScroll;
+                PointerActivityCaptured?.Invoke(this, new PointerActivityEventArgs(kind, data.Pt.X, data.Pt.Y, now, delta));
+                break;
+        }
+    }
+
+    private void HandleLeftButtonUp(int x, int y, DateTimeOffset now)
+    {
+        if (_leftButtonDown is not { } down)
+        {
+            return;
+        }
+
+        _leftButtonDown = null;
+        if (Math.Abs(x - down.X) >= _dragThreshold || Math.Abs(y - down.Y) >= _dragThreshold)
+        {
+            PointerActivityCaptured?.Invoke(this, new PointerActivityEventArgs(InputEventKind.Drag, down.X, down.Y, down.Timestamp, endX: x, endY: y));
+        }
+    }
+
+    private void HandleLeftClick(int x, int y, DateTimeOffset now)
     {
         ClickCapturedEventArgs? doubleClick = null;
         lock (_clickSync)
         {
-            var now = DateTimeOffset.Now;
             if (_pendingLeftClick is { } pending && IsDoubleClick(pending, x, y, now))
             {
                 _pendingLeftClickTimer?.Dispose();
@@ -99,7 +165,8 @@ public sealed class GlobalMouseHook : IDisposable
                     StepActionType.DoubleClick,
                     "Left",
                     2,
-                    $"Second left click within {_doubleClickTime.TotalMilliseconds:0} ms and {_doubleClickWidth}x{_doubleClickHeight}px system bounds.");
+                    $"Second left click within {_doubleClickTime.TotalMilliseconds:0} ms and {_doubleClickWidth}x{_doubleClickHeight}px system bounds.",
+                    pending.Timestamp);
             }
             else
             {
@@ -136,7 +203,7 @@ public sealed class GlobalMouseHook : IDisposable
             _pendingLeftClickTimer = null;
             var pending = _pendingLeftClick;
             _pendingLeftClick = null;
-            click = new ClickCapturedEventArgs(pending.X, pending.Y, StepActionType.Click, "Left");
+            click = new ClickCapturedEventArgs(pending.X, pending.Y, StepActionType.Click, "Left", timestamp: pending.Timestamp);
         }
 
         ClickCaptured?.Invoke(this, click);

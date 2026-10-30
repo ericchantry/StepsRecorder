@@ -216,3 +216,71 @@ public sealed class MarkdownExporterTests
         Assert.Contains("Name", safe);
     }
 }
+
+public sealed class RecordingExportTests
+{
+    [Fact]
+    public async Task ExportAsync_IncludesVideoTimelineEnvironmentAndZip()
+    {
+        var temp = Path.Combine(Path.GetTempPath(), "OpenStepsTests", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(temp);
+        var video = Path.Combine(temp, "source.mp4");
+        await File.WriteAllBytesAsync(video, [1, 2, 3]);
+
+        var session = new RecordingSession { Title = "Repro" };
+        session.Segments.Add(new RecordingSegment { Number = 1, VideoPath = video, DurationSeconds = 20, TypedTextCaptured = true });
+        session.Environment = new EnvironmentInfo { OperatingSystem = "Windows 11 Pro 24H2" };
+        session.InputEvents.Add(new InputEvent { Segment = 1, OffsetSeconds = 3, Kind = InputEventKind.KeyText, Text = "<b>", WindowTitle = "Notepad" });
+        session.InputEvents.Add(new InputEvent { Segment = 1, OffsetSeconds = 5, Kind = InputEventKind.Shortcut, Key = "Ctrl+S", WindowTitle = "Notepad" });
+        session.Steps.Add(new RecordedStep { GeneratedTitle = "Press Ctrl+S", VideoSegment = 1, VideoOffsetSeconds = 5 });
+
+        var result = await new MarkdownExporter().ExportAsync(
+            session,
+            temp,
+            GuideExportFormat.Markdown | GuideExportFormat.Html,
+            new GuideExportOptions(CreateZip: true));
+
+        Assert.True(File.Exists(Path.Combine(result.ExportFolder, "videos", "recording-1.mp4")));
+        var html = await File.ReadAllTextAsync(result.HtmlPath);
+        Assert.Contains("<video id=\"video-1\" data-seg=\"1\" src=\"videos/recording-1.mp4\"", html);
+        Assert.Contains("data-seg=\"1\" data-t=\"5\"", html);
+        Assert.Contains(System.Text.Encodings.Web.HtmlEncoder.Default.Encode("Pressed Ctrl+S"), html);
+        Assert.Contains(System.Text.Encodings.Web.HtmlEncoder.Default.Encode("Typed '<b>'"), html);
+        Assert.DoesNotContain("'<b>'", html);
+        Assert.Contains("Windows 11 Pro 24H2", html);
+
+        var markdown = await File.ReadAllTextAsync(result.MarkdownPath);
+        Assert.Contains("| 0:05.0 | Pressed Ctrl+S | Notepad |", markdown);
+        Assert.Contains("[Watch the video](videos/recording-1.mp4)", markdown);
+        Assert.Contains("_Video: [recording 1](videos/recording-1.mp4) at 0:05.0_", markdown);
+
+        Assert.True(File.Exists(result.ZipPath));
+        using var zip = System.IO.Compression.ZipFile.OpenRead(result.ZipPath);
+        Assert.Contains(zip.Entries, entry => entry.FullName.EndsWith("videos/recording-1.mp4", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task ExportAsync_CanLeaveOutVideoAndInputLog()
+    {
+        var temp = Path.Combine(Path.GetTempPath(), "OpenStepsTests", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(temp);
+        var video = Path.Combine(temp, "source.mp4");
+        await File.WriteAllBytesAsync(video, [1]);
+        var session = new RecordingSession { Title = "Doc only" };
+        session.Segments.Add(new RecordingSegment { Number = 1, VideoPath = video });
+        session.InputEvents.Add(new InputEvent { Segment = 1, OffsetSeconds = 1, Kind = InputEventKind.Shortcut, Key = "Ctrl+C" });
+        session.Steps.Add(new RecordedStep { GeneratedTitle = "Copy", VideoSegment = 1, VideoOffsetSeconds = 1 });
+
+        var result = await new MarkdownExporter().ExportAsync(
+            session,
+            temp,
+            GuideExportFormat.Html,
+            new GuideExportOptions(IncludeVideo: false, IncludeInputLog: false));
+
+        Assert.False(Directory.Exists(Path.Combine(result.ExportFolder, "videos")));
+        var html = await File.ReadAllTextAsync(result.HtmlPath);
+        Assert.DoesNotContain("<video", html);
+        Assert.DoesNotContain(System.Text.Encodings.Web.HtmlEncoder.Default.Encode("Pressed Ctrl+C"), html);
+        Assert.DoesNotContain("<script>", html);
+    }
+}

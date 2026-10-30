@@ -29,6 +29,22 @@ public sealed class StepTitleGenerator
             }
 
             var target = Clean(step.InputTargetName);
+            if (!string.IsNullOrWhiteSpace(step.TypedText))
+            {
+                var typed = Quote(TypedTextBuffer.Truncate(step.TypedText.ReplaceLineEndings(" "), 60));
+                if (!string.IsNullOrWhiteSpace(target))
+                {
+                    return new StepTitleResult($"Type {typed} into the {Quote(target)} field", "typed text with named input target");
+                }
+
+                if (!string.IsNullOrWhiteSpace(step.WindowTitle))
+                {
+                    return new StepTitleResult($"Type {typed} in {step.WindowTitle}", "typed text with window title");
+                }
+
+                return new StepTitleResult($"Type {typed}", "typed text");
+            }
+
             if (!string.IsNullOrWhiteSpace(target))
             {
                 return new StepTitleResult($"Type into the {Quote(target)} field", "named text input target");

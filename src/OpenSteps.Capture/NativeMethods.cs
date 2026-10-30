@@ -7,7 +7,14 @@ internal static partial class NativeMethods
     internal const int WH_MOUSE_LL = 14;
     internal const int WH_KEYBOARD_LL = 13;
     internal const int WM_LBUTTONDOWN = 0x0201;
+    internal const int WM_LBUTTONUP = 0x0202;
     internal const int WM_RBUTTONDOWN = 0x0204;
+    internal const int WM_MBUTTONDOWN = 0x0207;
+    internal const int WM_MOUSEWHEEL = 0x020A;
+    internal const int WM_MOUSEHWHEEL = 0x020E;
+    internal const uint LLKHF_INJECTED = 0x10;
+    internal const uint CURSOR_SHOWING = 0x00000001;
+    internal const int DI_NORMAL = 0x0003;
     internal const int WM_KEYDOWN = 0x0100;
     internal const int WM_SYSKEYDOWN = 0x0104;
     internal const int SM_CXDOUBLECLK = 36;
@@ -78,6 +85,31 @@ internal static partial class NativeMethods
     internal static partial short GetAsyncKeyState(int virtualKey);
 
     [LibraryImport("user32.dll")]
+    internal static partial short GetKeyState(int virtualKey);
+
+    [LibraryImport("user32.dll")]
+    internal static partial IntPtr GetKeyboardLayout(uint threadId);
+
+    [LibraryImport("user32.dll", StringMarshalling = StringMarshalling.Utf16)]
+    internal static partial int ToUnicodeEx(uint virtualKey, uint scanCode, ReadOnlySpan<byte> keyState, Span<char> buffer, int bufferSize, uint flags, IntPtr keyboardLayout);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static extern bool GetCursorInfo(ref CURSORINFO cursorInfo);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static extern bool GetIconInfo(IntPtr icon, out ICONINFO iconInfo);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static extern bool DrawIconEx(IntPtr hdc, int left, int top, IntPtr icon, int width, int height, int step, IntPtr brush, int flags);
+
+    [DllImport("gdi32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static extern bool DeleteObject(IntPtr handle);
+
+    [LibraryImport("user32.dll")]
     internal static partial IntPtr MonitorFromPoint(POINT point, uint flags);
 
     [DllImport("user32.dll", EntryPoint = "GetMonitorInfoW", CharSet = CharSet.Unicode, SetLastError = true)]
@@ -131,6 +163,26 @@ internal static partial class NativeMethods
         public uint Flags;
         public uint Time;
         public UIntPtr ExtraInfo;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    internal struct CURSORINFO
+    {
+        public int Size;
+        public uint Flags;
+        public IntPtr Cursor;
+        public POINT ScreenPosition;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    internal struct ICONINFO
+    {
+        [MarshalAs(UnmanagedType.Bool)]
+        public bool IsIcon;
+        public int HotspotX;
+        public int HotspotY;
+        public IntPtr MaskBitmap;
+        public IntPtr ColorBitmap;
     }
 
     [StructLayout(LayoutKind.Sequential)]

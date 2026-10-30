@@ -5,6 +5,8 @@ namespace OpenSteps.Capture;
 
 public sealed class ActiveWindowService
 {
+    private readonly Dictionary<uint, string?> _processNameCache = [];
+
     public ActiveWindowInfo Capture()
     {
         var handle = NativeMethods.GetForegroundWindow();
@@ -54,6 +56,51 @@ public sealed class ActiveWindowService
         }
 
         return new ActiveWindowInfo(handle, title, processName, executablePath, bounds);
+    }
+
+    /// <summary>Cheap title + process name lookup for timeline events (process names are cached per PID).</summary>
+    public (string? Title, string? ProcessName) DescribeWindow(IntPtr handle)
+    {
+        if (handle == IntPtr.Zero)
+        {
+            return (null, null);
+        }
+
+        NativeMethods.GetWindowThreadProcessId(handle, out var processId);
+        if (!_processNameCache.TryGetValue(processId, out var processName))
+        {
+            try
+            {
+                using var process = Process.GetProcessById((int)processId);
+                processName = process.ProcessName;
+            }
+            catch
+            {
+                processName = null;
+            }
+
+            if (_processNameCache.Count > 500)
+            {
+                _processNameCache.Clear();
+            }
+
+            _processNameCache[processId] = processName;
+        }
+
+        return (GetTitle(handle), processName);
+    }
+
+    /// <summary>Top-level window under a screen point.</summary>
+    public IntPtr GetRootWindowAt(int x, int y)
+    {
+        var hit = NativeMethods.WindowFromPoint(new NativeMethods.POINT { X = x, Y = y });
+        if (hit == IntPtr.Zero)
+        {
+            return IntPtr.Zero;
+        }
+
+        var root = NativeMethods.GetAncestor(hit, NativeMethods.GA_ROOT);
+        return root == IntPtr.Zero ? hit : root;
     }
 
     private static string? GetTitle(IntPtr handle)

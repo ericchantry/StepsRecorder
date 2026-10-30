@@ -68,6 +68,16 @@ public partial class SessionEditorWindow : Window
         await _controller.ExportMarkdownFromEditorAsync();
     }
 
+    private void ReviewRecording_Click(object sender, RoutedEventArgs e)
+    {
+        _controller.OpenRecordingReviewFromEditor(null);
+    }
+
+    private void JumpToVideo_Click(object sender, RoutedEventArgs e)
+    {
+        _controller.OpenRecordingReviewFromEditor((sender as FrameworkElement)?.DataContext as OpenSteps.Core.Models.RecordedStep);
+    }
+
     private void ViewScreenshot_Click(object sender, RoutedEventArgs e)
     {
         _controller.ViewScreenshotFromEditor(sender);
