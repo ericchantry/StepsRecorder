@@ -106,3 +106,13 @@ Use this checklist before demoing OpenSteps.
 2. Run `install.cmd`. Confirm the Start Menu shortcut, the Settings > Apps entry, and `%LOCALAPPDATA%\Programs\OpenSteps`.
 3. Run `install.cmd` again; confirm the log says the version is already installed.
 4. Run `uninstall.cmd -Quiet`; confirm the shortcut, Apps entry and install folder are gone and `%LOCALAPPDATA%\OpenSteps\Sessions` is kept.
+
+## Recording Bar
+
+1. Start recording and confirm the Pause / Stop / Cancel bar appears at the bottom of the screen and the main recorder bar hides.
+2. Type into Notepad, click the bar's **Pause**, and confirm Notepad still has keyboard focus (the cursor keeps blinking) and the bar shows **Paused**.
+3. Confirm the bar does not appear in step screenshots or in the session video.
+4. Drag the bar by its grip to another spot and keep recording.
+5. Click **Cancel**, choose **No**, and confirm recording continues. Click **Cancel** again, choose **Yes**, and confirm the recorder bar returns and no new guide was saved.
+6. Use **Record more steps** on an existing guide, record two clicks, then **Cancel** > **Yes**. Confirm the editor shows only the original steps.
+7. Start again and click **Stop**; confirm the editor opens with the new steps.
