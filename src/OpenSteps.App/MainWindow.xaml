@@ -159,7 +159,7 @@
                           DropDownOpened="CaptureModeCombo_DropDownOpened"
                           Width="208"
                           Style="{StaticResource PillComboBox}"
-                          ToolTip="All monitors: screenshots and video show every monitor.&#x0a;A single display: only that monitor is recorded; clicks and typing on other monitors are ignored.&#x0a;Active window: screenshots show the window you are working in, and the video follows the monitor it is on." />
+                          ToolTip="All monitors: screenshots and video show every monitor.&#x0a;A single monitor: only that monitor is recorded; clicks and typing on other monitors are ignored.&#x0a;Active window: screenshots show the window you are working in, and the video follows the monitor it is on." />
 
                 <Rectangle Style="{StaticResource Divider}" />
 

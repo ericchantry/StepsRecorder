@@ -119,8 +119,8 @@ Use this checklist before demoing OpenSteps.
 
 ## Capture Area (multiple monitors)
 
-1. Open the **Capture** list and confirm it shows **All monitors**, one **Display N · width×height** entry per monitor (the main one marked), and **Active window**.
-2. Pick one display. Record a click on that display and a click and some typing on another display. Stop.
-3. Confirm only the click on the chosen display became a step, its screenshot shows only that monitor, the timeline has nothing from the other display, and the video shows only the chosen monitor.
+1. Open the **Capture** list and confirm it shows **All monitors**, one entry per monitor named by position, e.g. **Left monitor · 1920×1200** (the main one marked), and **Active window**.
+2. Pick one monitor. Record a click on that monitor, and a click and some typing on another monitor. Stop.
+3. Confirm only the click on the chosen monitor became a step, its screenshot shows only that monitor, the timeline has nothing from the other monitor, and the video shows only the chosen monitor.
 4. Pick **Active window**. Record clicks in a window on one monitor, then a window on another. Confirm each screenshot shows only the clicked window and the video switches to the second monitor when focus moves there.
-5. Unplug or disable the chosen monitor (or change display settings), reopen the Capture list, and confirm it falls back to the main display.
+5. Unplug or disable the chosen monitor (or change display settings), reopen the Capture list, and confirm it falls back to the main monitor.

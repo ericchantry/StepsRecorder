@@ -54,10 +54,7 @@ public partial class MainWindow
         IReadOnlyList<DisplayMonitorInfo> monitors;
         try
         {
-            monitors = _monitorService.GetAllMonitors()
-                .OrderBy(monitor => monitor.BoundsLeft)
-                .ThenBy(monitor => monitor.BoundsTop)
-                .ToList();
+            monitors = SortMonitors(_monitorService.GetAllMonitors());
         }
         catch
         {
@@ -69,9 +66,7 @@ public partial class MainWindow
         {
             for (var i = 0; i < monitors.Count; i++)
             {
-                var monitor = monitors[i];
-                var label = ScreenshotModeLabels.GetMonitorLabel(monitor.DeviceName, i + 1, monitor.Width, monitor.Height, monitor.IsPrimary);
-                options.Add(new ScreenshotModeOption(label, ScreenshotMode.Monitor, monitor.DeviceName));
+                options.Add(new ScreenshotModeOption(GetMonitorLabel(monitors, i), ScreenshotMode.Monitor, monitors[i].DeviceName));
             }
         }
 
@@ -124,8 +119,10 @@ public partial class MainWindow
         {
             case ScreenshotMode.Monitor:
                 var monitor = _monitorService.FindMonitor(_captureMonitorDeviceName);
-                _captureMonitorBounds = System.Drawing.Rectangle.FromLTRB(monitor.BoundsLeft, monitor.BoundsTop, monitor.BoundsRight, monitor.BoundsBottom);
-                return VideoCaptureTarget.SingleMonitor(monitor, ScreenshotModeLabels.GetMonitorLabel(monitor.DeviceName, monitor.Index, monitor.Width, monitor.Height, monitor.IsPrimary));
+                var sorted = SortMonitors(_monitorService.GetAllMonitors());
+                var position = sorted.FindIndex(m => m.MonitorHandle == monitor.MonitorHandle);
+                _captureMonitorBounds = MonitorBoundsFor(monitor);
+                return VideoCaptureTarget.SingleMonitor(monitor, position >= 0 ? GetMonitorLabel(sorted, position) : monitor.DeviceName ?? "Selected monitor");
             case ScreenshotMode.ActiveWindow:
                 return VideoCaptureTarget.FollowActiveWindowMonitor(_monitorService);
             default:
@@ -157,6 +154,18 @@ public partial class MainWindow
         var windowMonitor = MonitorService.GetMonitorBoundsForWindow(foreground);
         var bounds = _captureMonitorBounds ?? MonitorBoundsFor(_monitorService.FindMonitor(_captureMonitorDeviceName));
         return windowMonitor is { } value && value != bounds;
+    }
+
+    private static List<DisplayMonitorInfo> SortMonitors(IEnumerable<DisplayMonitorInfo> monitors)
+    {
+        return monitors.OrderBy(monitor => monitor.BoundsLeft).ThenBy(monitor => monitor.BoundsTop).ToList();
+    }
+
+    private static string GetMonitorLabel(IReadOnlyList<DisplayMonitorInfo> sorted, int position)
+    {
+        var sideBySide = ScreenshotModeLabels.AreSideBySide(sorted.Select(m => (m.BoundsLeft, m.BoundsRight)).ToList());
+        var monitor = sorted[position];
+        return ScreenshotModeLabels.GetMonitorLabel(position, sorted.Count, sideBySide, monitor.Width, monitor.Height, monitor.IsPrimary);
     }
 
     private static System.Drawing.Rectangle MonitorBoundsFor(DisplayMonitorInfo monitor)

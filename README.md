@@ -30,7 +30,7 @@ Everything stays on your computer. No account, no cloud, no telemetry, and no ad
 ## What's new in 0.2
 
 - **Session video.** An MP4 of all your monitors, a single monitor, or whichever monitor you're working on, with the cursor and a highlight on every click. Paused time is cut out.
-- **Record a single monitor.** Pick one display to record; activity on your other monitors is left out of the screenshots, video and timeline.
+- **Record a single monitor.** Pick one monitor to record; activity on your other monitors is left out of the screenshots, video and timeline.
 - **Keystroke and mouse timeline.** Every key and shortcut (Ctrl+F, Alt+Tab, F5, Win+R…), the text you typed, clicks, scrolls, drags and middle clicks — each with a timestamp and the window it went to.
 - **Video & timeline review.** Watch the video next to the timeline. Click any row to jump to that moment; the current row highlights as it plays. Every step has a button that opens the video at that step.
 - **Typed text in steps.** Steps now read like `Type 'invoice 1042' into the 'Search' field`. Backspace corrections are applied.
@@ -59,7 +59,7 @@ OpenSteps is not code-signed yet. SmartScreen may warn on first launch, and secu
 1. **Choose what to capture** on the recorder bar:
    - **Capture** – what the screenshots and video cover:
      - *All monitors* – everything.
-     - *Display 1, Display 2…* – just that monitor. Clicks and typing on your other monitors are ignored, so nothing from them ends up in the guide or the timeline.
+     - *Left / Middle / Right monitor* (or *Monitor 1, 2…* when they aren't side by side) – just that monitor. Clicks and typing on your other monitors are ignored, so nothing from them ends up in the guide or the timeline.
      - *Active window* – screenshots show only the window you're working in, and the video follows whichever monitor that window is on.
    - **Video** – record a video of the session.
    - **Typed text** – record the characters you type (password fields are always masked).
@@ -146,7 +146,7 @@ Project layout:
 - Without admin rights, Windows does not let OpenSteps see clicks or keys in apps running as administrator.
 - The UAC prompt and lock screen can't be captured; the video shows the last visible frame.
 - Typed text is rebuilt from key presses. Backspace is applied, but edits made by moving the cursor, accents typed with dead keys, and IME input may not come out exactly; the raw key sequence is kept on the timeline.
-- In *All monitors* mode the video puts every monitor in one frame, scaled down to fit 3840×2160 on very wide desktops; pick a single display for a sharper video. In *Active window* mode the video switches monitors as you move between them, with black bars when monitors differ in size. Screenshot crop and redaction don't apply to the video.
+- In *All monitors* mode the video puts every monitor in one frame, scaled down to fit 3840×2160 on very wide desktops; pick a single monitor for a sharper video. In *Active window* mode the video switches monitors as you move between them, with black bars when monitors differ in size. Screenshot crop and redaction don't apply to the video.
 - Some apps expose little UI Automation information, so their step titles fall back to the window name.
 - Active-window screenshots fall back to the monitor you clicked on when Windows can't report usable window bounds.
 - Full-screen and DRM-protected content may not be captured.
