@@ -33,8 +33,8 @@ public partial class MainWindow
 
             if (value.IsPicker)
             {
-                // "Pick a window…" is an action, not a choice: keep showing the current choice and start picking.
-                Dispatcher.BeginInvoke(RestoreCaptureComboSelection, System.Windows.Threading.DispatcherPriority.Background);
+                // "Pick a window…" is an action, not a choice. The box shows it while picking; the previous
+                // choice is put back if picking is cancelled.
                 _ = PickWindowAsync();
                 return;
             }
@@ -215,13 +215,13 @@ public partial class MainWindow
         }
 
         _pickingWindow = true;
+        var picked = IntPtr.Zero;
         var prompt = new WindowPickPrompt { Owner = this };
         try
         {
             prompt.Show();
             var ownProcessId = (uint)Environment.ProcessId;
             var deadline = DateTime.UtcNow.AddSeconds(60);
-            var picked = IntPtr.Zero;
             while (!prompt.IsCancelled && DateTime.UtcNow < deadline)
             {
                 await Task.Delay(100);
@@ -256,6 +256,10 @@ public partial class MainWindow
             }
 
             _pickingWindow = false;
+            if (picked == IntPtr.Zero)
+            {
+                RestoreCaptureComboSelection();
+            }
         }
     }
 
