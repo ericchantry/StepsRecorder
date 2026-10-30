@@ -14,7 +14,11 @@ using WinForms = System.Windows.Forms;
 
 namespace OpenSteps.App;
 
-public sealed record ScreenshotModeOption(string DisplayName, ScreenshotMode Mode);
+public sealed record ScreenshotModeOption(string DisplayName, ScreenshotMode Mode)
+{
+    // The styled ComboBox shows the selected item via ToString(), which for a record would print its type name.
+    public override string ToString() => DisplayName;
+}
 
 public partial class MainWindow : Window, INotifyPropertyChanged
 {
