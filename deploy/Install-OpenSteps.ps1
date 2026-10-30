@@ -21,7 +21,7 @@
     Path to an OpenSteps-<version>-win-x64.zip or to a folder containing OpenSteps.App.exe.
 
 .PARAMETER Version
-    GitHub release tag to download when no local package is found, e.g. v0.2.0. Default: latest.
+    GitHub release tag to download when no local package is found, e.g. v0.2.1. Default: latest.
 
 .PARAMETER Repository
     GitHub repository (owner/name) that publishes the releases.
@@ -52,10 +52,10 @@
     Install log location.
 
 .EXAMPLE
-    .\Install-OpenSteps.ps1 -Source \\fileserver\software\OpenSteps\OpenSteps-0.2.0-win-x64.zip -Quiet
+    .\Install-OpenSteps.ps1 -Source \\fileserver\software\OpenSteps\OpenSteps-0.2.1-win-x64.zip -Quiet
 
 .EXAMPLE
-    .\Install-OpenSteps.ps1 -Version v0.2.0 -ExpectedSha256 <hash> -Quiet
+    .\Install-OpenSteps.ps1 -Version v0.2.1 -ExpectedSha256 <hash> -Quiet
 
 .NOTES
     Exit codes: 0 = success, 1 = failure (see the log).

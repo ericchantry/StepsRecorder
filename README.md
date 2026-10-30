@@ -1,166 +1,164 @@
 # OpenSteps
 
 > [!WARNING]
-> OpenSteps is an early Windows beta. It is usable for local workflow capture, but you should review every screenshot before sharing or exporting a guide.
+> OpenSteps is an early Windows beta. It is usable for day-to-day recording, but review every screenshot and video before you share a guide.
 
-<p align="center"><strong>A Windows-native recorder for turning desktop workflows into clean step-by-step guides.</strong></p>
+<p align="center"><strong>A local Windows recorder that turns what you do into step-by-step guides and exact repro steps — with screenshots, a full video and a keystroke timeline.</strong></p>
 
-OpenSteps records what you do on Windows, captures screenshots and click context, a full-session video and a timestamped keyboard and mouse timeline, then turns the result into an editable guide you can export as Markdown or HTML. It is built for support docs, onboarding notes, internal SOPs, QA repro steps, and tutorials where you want a local tool instead of a cloud recorder.
+OpenSteps is a modern replacement for Windows Steps Recorder. Press Record, do the task, press Stop, and you get an editable guide: one step per click or key press, each with a screenshot, plus a video of the whole session and a timestamped log of every click, key, shortcut and the text you typed. Export it as Markdown or HTML, or zip it up and attach it to a ticket.
+
+Everything stays on your computer. No account, no cloud, no telemetry, and no administrator rights needed to install or run it.
 
 <p align="center">
-  <img src="img/initial.png" alt="OpenSteps before recording" width="720" />
+  <img src="img/initial.png" alt="The OpenSteps recorder bar" width="720" />
   <br />
-  <em>OpenSteps before recording</em>
+  <em>The recorder bar</em>
 </p>
 
 <p align="center">
-  <img src="img/guide.png" alt="OpenSteps guide editor" width="720" />
+  <img src="img/guide.png" alt="The OpenSteps guide editor" width="720" />
   <br />
   <em>Editing a captured guide</em>
 </p>
 
-## What It Does
+## Who it's for
 
-- Records desktop workflows with global click, right-click, and double-click capture.
-- Shows a small Pause / Stop / Cancel bar at the bottom of the screen while recording. It never takes focus from the app you are recording and is hidden from screenshots and the video. Cancel discards everything captured since you pressed Record.
-- Records a full-session MP4 video of all monitors (cursor and click rings included) using built-in Windows encoders.
-- Records a keystroke and mouse timeline: every key and shortcut (Ctrl+F, Alt+Tab, F5, Win+R...), typed text, scrolls, drags and middle clicks, each with a timestamp and the window it went to.
-- Masks typed text in password fields and fields that look like secrets (PIN, CVV, card number...). Typed-text capture can be switched off on the recorder bar, from the tray while recording, or by IT policy.
-- Reviews a recording side by side: the video plays next to the timeline, clicking any row jumps to that moment, and every step has a button that opens the video at that step.
-- Captures system details for bug reports (Windows version, displays and scaling, language, keyboard layout) without user or computer names.
-- Captures screenshots, click highlights, active-window metadata, and UI Automation context.
-- Supports full-desktop screenshots or active-window-only screenshots.
-- Skips OpenSteps UI, taskbar, and system-tray clicks so recordings stay focused on the real workflow.
-- Saves recordings locally as editable sessions.
-- Lets you rename guides, edit step titles and descriptions, reorder steps, delete steps, and insert manual steps.
-- Lets you capture a screenshot for a manual step.
-- Supports screenshot redaction, cropping, annotations, and screenshot replacement before export.
-- Collapses long step cards so larger recordings are easier to edit.
-- Exports portable Markdown or HTML guides with relative image links. HTML exports embed the video with a clickable, auto-highlighting timeline; both formats include the input log and system details, and the export can be zipped into one file for a ticket.
+- **Process documentation** – SOPs, onboarding notes, training material and IT how-tos.
+- **Bug reports and QA** – exact steps to reproduce an issue, with the video and every keystroke to prove it.
+- **Support** – customer and internal walkthroughs.
 
-## Why It Exists
+## What's new in 0.2
 
-Windows Steps Recorder was useful, but it is dated and limited. OpenSteps is a modern local-first replacement for people who need to document Windows workflows quickly without uploading screenshots, installing a browser extension, or using a SaaS account.
+- **Session video.** A full MP4 of all your monitors, with the cursor and a highlight on every click. Paused time is cut out.
+- **Keystroke and mouse timeline.** Every key and shortcut (Ctrl+F, Alt+Tab, F5, Win+R…), the text you typed, clicks, scrolls, drags and middle clicks — each with a timestamp and the window it went to.
+- **Video & timeline review.** Watch the video next to the timeline. Click any row to jump to that moment; the current row highlights as it plays. Every step has a button that opens the video at that step.
+- **Typed text in steps.** Steps now read like `Type 'invoice 1042' into the 'Search' field`. Backspace corrections are applied.
+- **Password masking.** Password fields, and fields that look like secrets (PIN, CVV, card number, security code…), are always masked and never stored.
+- **On-screen Pause / Stop / Cancel bar** while recording. It never takes focus from the app you're recording and never appears in screenshots or the video. Cancel throws away everything since you pressed Record.
+- **Bug-report details.** Windows version and build, displays and scaling, language, keyboard layout and time zone — never user or computer names.
+- **Richer exports.** HTML embeds the video with a clickable timeline and "Watch at 0:12" links on each step. Markdown gets the input log. Optional single .zip for tickets.
+- **IT deployment without admin rights.** A per-user install script for Intune, Configuration Manager or a logon script, plus policies to turn typed-text capture or video off. See [docs/deployment.md](docs/deployment.md).
+- Shortcuts are no longer limited to a handful of keys, and the recorder bar now shows the screenshot mode by name.
 
-OpenSteps is especially useful for:
+## Install
 
-- IT support guides.
-- Internal process documentation.
-- QA reproduction steps.
-- Customer support walkthroughs.
-- Training and onboarding material.
-- Personal notes for repeated desktop tasks.
+Download `OpenSteps-<version>-win-x64.zip` from [Releases](https://github.com/ericchantry/StepsRecorder/releases), extract it, and double-click **`install.cmd`**.
 
-## Download and install
+- Installs for the current user only, to `%LOCALAPPDATA%\Programs\OpenSteps`. **No administrator rights needed.**
+- Adds a Start Menu shortcut and an entry in **Settings > Apps** (uninstall from there or with `uninstall.cmd`).
+- Self-contained: no .NET runtime to install. You can also run `OpenSteps.App.exe` straight from the extracted folder.
+- Requires Windows 10 version 1809 or later, x64.
 
-Download the latest `OpenSteps-*-win-x64.zip` from [GitHub Releases](https://github.com/ericchantry/StepsRecorder/releases), extract it, and double-click `install.cmd`.
+**For IT departments:** `install.cmd -Quiet` installs silently from the package, a file share or GitHub, and is safe to run at every logon. Typed-text capture and video can be disabled by policy. The [deployment guide](docs/deployment.md) covers Intune, Configuration Manager, Group Policy, policies, and what to plan for (code signing, AppLocker, execution policy).
 
-The installer is per-user and **does not need administrator rights**. It installs to `%LOCALAPPDATA%\Programs\OpenSteps`, adds a Start Menu shortcut and an entry in Settings > Apps. Run `uninstall.cmd` (or use Settings > Apps) to remove it.
+OpenSteps is not code-signed yet. SmartScreen may warn on first launch, and security software may flag the keyboard hook.
 
-The release is self-contained, so the .NET runtime does not need to be installed separately. You can also just run `OpenSteps.App.exe` from the extracted folder.
+## Using it
 
-IT departments can deploy it silently with Intune, Configuration Manager or a logon script, and can turn typed-text capture or video off by policy. See [docs/deployment.md](docs/deployment.md).
+1. **Choose what to capture** on the recorder bar:
+   - **Capture** – *Full Desktop* (all monitors) or *Active Window* screenshots.
+   - **Video** – record a video of the session.
+   - **Typed text** – record the characters you type (password fields are always masked).
+2. **Press Record** (●). The recorder bar hides and a small bar appears at the bottom of the screen:
+   - **Pause / Resume** – nothing is recorded while paused, and the pause is cut from the video.
+   - **Stop** – finish and open the guide editor.
+   - **Cancel** – discard this recording (asks first).
 
-OpenSteps is not code-signed yet. Windows SmartScreen may warn on first launch, and security software may flag the keyboard hook; see the deployment guide.
+   The tray icon has the same controls, plus **Record typed text** so you can switch it off before typing something private.
+3. **Do the task.** Each click, double-click, right-click, Enter/Tab/Escape, function key and shortcut becomes a step with a screenshot. Typing is grouped into one step per field.
+4. **Edit the guide.** Rename it, edit step titles and descriptions, reorder, delete or insert steps, and edit screenshots (crop, redact, annotate with boxes, arrows, highlights and numbered markers, or replace by importing or pasting). Click **Video & timeline** to review the recording.
+5. **Export** as Markdown and/or HTML, optionally with the video, the input timeline, system details and a .zip.
 
 ## Export
 
-OpenSteps exports a portable folder containing the guide file and ordered screenshots:
+An export is a portable folder that does not link back to your local session:
 
 ```text
-Exported Guide/
-guide.md
-guide.html
-images/
-step-001.png
-step-002.png
-videos/
-recording-1.mp4
+My Guide/
+  guide.md
+  guide.html
+  images/
+    step-001.png
+    step-002.png
+  videos/
+    recording-1.mp4
 ```
 
-Markdown and HTML exports use relative links such as:
+- **HTML** – opens in any browser. Includes the video player beside a clickable timeline that highlights as the video plays, a "Watch at" link on each step, and a system details table.
+- **Markdown** – portable and version-controllable. Includes the input timeline as a table and links to the video.
+- **.zip** – the whole folder in one file, for attaching to a ticket or email.
 
-```markdown
-![Step 1](images/step-001.png)
-```
-
-The exported guide does not link back to `%LOCALAPPDATA%`, so you can move or share the export folder as a self-contained guide.
+Video, the input timeline and system details can each be left out.
 
 ## Privacy
 
-OpenSteps runs locally. It does not require an account, does not upload screenshots, and does not include telemetry.
-
-Recordings are saved under:
+OpenSteps only records while you have pressed Record, and shows the recording bar and a tray icon the whole time. Recordings stay on your computer in:
 
 ```text
 %LOCALAPPDATA%\OpenSteps\Sessions
 ```
 
-Each saved session contains a `session.json` file (steps, input timeline, system details), local screenshots and any session videos. You can reopen, rename, edit, delete, and export sessions again.
+Each session holds a `session.json` (steps, input timeline, system details), its screenshots and its videos. You can reopen, rename, edit, export or delete sessions.
 
-Screenshot modes affect how much screen content is captured:
+- **Typed text** is on by default so repro steps show exactly what was entered. Characters typed into password fields, or fields named like PIN, CVV, card number or security code, are never stored. Turn **Typed text** off on the recorder bar or from the tray to record only key names, shortcuts and key counts. IT can force it off.
+- **The video records everything visible on screen**, including text as it appears in non-password fields. Pause before showing anything private, and review the video before you share an export.
+- **Screenshots** can contain private data too. Use crop and redaction, or Active Window mode, and review every step.
+- **System details** never include your user name, computer name or network details.
 
-- **Full desktop** captures all visible monitors.
-- **Active window only** captures the foreground window when possible.
+## Build from source
 
-If active-window capture fails, OpenSteps falls back to full-desktop capture so the step is not lost. Screenshots can still contain private data, so review every step before sharing a guide. Use crop and redaction to remove irrelevant or sensitive areas.
-
-The guide editor can import or paste a replacement screenshot when active-window capture grabs the wrong image. Screenshot annotations include rectangles, arrows, semi-transparent highlights, and sequential number or letter markers. Annotation edits are baked into a new PNG copy in the session images folder, so the original captured screenshot is not overwritten.
-
-When **Typed text** is on (the default), OpenSteps stores the characters you type so repro steps show exactly what was entered, for example `Type 'invoice 1042' into the 'Search' field`. Password fields and fields that look like secrets are always masked and their characters are never stored. Turn **Typed text** off on the recorder bar, or from the tray icon mid-recording, to record only key counts, keys and shortcuts. Your IT department can force it off.
-
-The session video records everything visible on screen, including anything you type into visible fields. Pause recording before showing private information, and review the video before sharing an export. Video and screenshots can be left out of an export.
-
-## Build From Source
-
-Requirements:
-
-- Windows 10 or newer.
-- .NET 8 SDK with Windows Desktop runtime. (No admin needed: `dotnet-install.ps1 -Channel 8.0 -InstallDir $env:LOCALAPPDATA\Microsoft\dotnet` works.)
-
-Build and run:
+Requirements: Windows 10 or later and the .NET 8 SDK. No admin needed — `dotnet-install.ps1 -Channel 8.0 -InstallDir $env:LOCALAPPDATA\Microsoft\dotnet` installs it into your profile.
 
 ```powershell
 dotnet build OpenSteps.sln
 dotnet run --project src\OpenSteps.App\OpenSteps.App.csproj
-```
-
-Run tests:
-
-```powershell
 dotnet test OpenSteps.sln
 ```
 
-The screen-recording test only runs in an interactive session when `OPENSTEPS_RUN_SCREEN_TESTS=1` is set.
+The real screen-recording test only runs in an interactive session with `OPENSTEPS_RUN_SCREEN_TESTS=1` set.
 
-Build the release package (self-contained zip with install scripts, plus its SHA-256):
+Build the release package (self-contained zip with the install scripts, plus its SHA-256):
 
 ```powershell
 .\build\Publish-OpenSteps.ps1
 ```
 
-## Known Limits
+Pushing a version tag (for example `v0.2.1`) runs the GitHub Actions release workflow, which builds, tests and publishes the zip to Releases.
 
-- Elevated/admin apps may block hooks, screenshots, or metadata unless OpenSteps is also elevated. OpenSteps never needs elevation itself.
-- The UAC prompt and lock screen cannot be captured; the video holds the last visible frame.
-- Typed text is rebuilt from key presses: Backspace is applied, but edits made by moving the cursor, dead keys/accents and IME input may not be reflected exactly. The raw key sequence is kept on the timeline.
-- Video records all monitors in one frame; very wide desktops are scaled to fit 3840x2160. The editor's redaction and crop tools do not apply to the video.
-- Some apps expose little or no UI Automation metadata; screenshots and click coordinates should still work.
-- Active-window capture depends on Windows reporting usable window bounds.
-- Full-screen apps and protected content may interfere with screenshot capture.
-- Active-window capture may fall back to full-desktop capture when a window cannot be captured safely.
-- The app is Windows-first and currently targets local desktop workflows only.
+Project layout:
+
+| Folder | What's in it |
+|---|---|
+| `src/OpenSteps.Core` | Models, timeline, title generation, export, storage |
+| `src/OpenSteps.Capture` | Keyboard/mouse hooks, UI Automation, screenshots, video recorder |
+| `src/OpenSteps.App` | WPF app: recorder bar, recording bar, editor, review window |
+| `tests/OpenSteps.Tests` | xUnit tests |
+| `deploy/` | Per-user install and uninstall scripts |
+| `build/` | Release packaging script |
+| `docs/` | Deployment guide and manual smoke test |
+
+## Known limits
+
+- Without admin rights, Windows does not let OpenSteps see clicks or keys in apps running as administrator.
+- The UAC prompt and lock screen can't be captured; the video shows the last visible frame.
+- Typed text is rebuilt from key presses. Backspace is applied, but edits made by moving the cursor, accents typed with dead keys, and IME input may not come out exactly; the raw key sequence is kept on the timeline.
+- The video covers all monitors in one frame, scaled down to fit 3840×2160 on very wide desktops. Screenshot crop and redaction don't apply to the video.
+- Some apps expose little UI Automation information, so their step titles fall back to the window name.
+- Active-window screenshots fall back to full desktop when Windows can't report usable window bounds.
+- Full-screen and DRM-protected content may not be captured.
+- Windows only.
 
 ## Roadmap
 
+- Record a single monitor or window in the video.
+- Redaction for video.
 - More reliable capture around unusual shell surfaces.
 - Better generated titles from UI Automation metadata.
-- More editor polish for long guides.
 - Richer HTML export styling.
 
 ## Contributing
 
-See [AGENTS.md](AGENTS.md) for repository guidelines. Keep changes focused, add tests for core behavior, and include manual verification notes for capture or WPF UI changes.
+See [AGENTS.md](AGENTS.md) for repository guidelines. Keep changes focused, add tests for core behavior, and include manual verification notes for capture or WPF UI changes ([docs/manual-smoke-test.md](docs/manual-smoke-test.md)).
 
 ## License
 
