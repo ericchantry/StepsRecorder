@@ -42,11 +42,13 @@ public static class InputTimelineBuilder
     public static IReadOnlyList<TimelineEntry> BuildWithSteps(IEnumerable<InputEvent> events, IEnumerable<RecordedStep> steps)
     {
         var entries = Build(events).ToList();
+        var number = 0;
         foreach (var step in steps)
         {
+            number++;
             if (step is { VideoSegment: { } segment, VideoOffsetSeconds: { } offset })
             {
-                entries.Add(new TimelineEntry(segment, offset, TimelineCategory.Step, $"Step {step.Index}: {step.DisplayTitle}", null));
+                entries.Add(new TimelineEntry(segment, offset, TimelineCategory.Step, $"Step {number}: {step.DisplayTitle}", null));
             }
         }
 

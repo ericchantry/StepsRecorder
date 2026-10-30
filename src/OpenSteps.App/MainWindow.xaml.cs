@@ -688,7 +688,10 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
     internal async Task ExportMarkdownFromEditorAsync()
     {
-        var options = new ExportOptionsWindow
+        var options = new ExportOptionsWindow(
+            hasVideo: _session.Segments.Any(segment => segment.HasVideo),
+            hasInputLog: _session.InputEvents.Count > 0,
+            hasEnvironment: _session.Environment is not null)
         {
             Owner = _editorWindow
         };
@@ -714,7 +717,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             SyncSessionOrder();
             _session.Title = GetCurrentSessionTitle();
             await SaveSessionAsync(showMessage: false);
-            var result = await _markdownExporter.ExportAsync(_session, dialog.SelectedPath, options.SelectedFormats);
+            var result = await _markdownExporter.ExportAsync(_session, dialog.SelectedPath, options.SelectedFormats, options.SelectedOptions);
             new ExportResultWindow(result)
             {
                 Owner = _editorWindow
