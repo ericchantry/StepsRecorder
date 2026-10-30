@@ -222,14 +222,24 @@ public partial class MainWindow
             prompt.Show();
             var ownProcessId = (uint)Environment.ProcessId;
             var deadline = DateTime.UtcNow.AddSeconds(60);
+
+            // Only a window the user activates after picking starts counts, so whatever happened to be in
+            // front already is never picked by accident.
+            var startingForeground = WindowEnumerator.GetRootOwner(_activeWindowService.GetForegroundWindowHandle());
             while (!prompt.IsCancelled && DateTime.UtcNow < deadline)
             {
                 await Task.Delay(100);
                 var foreground = WindowEnumerator.GetRootOwner(_activeWindowService.GetForegroundWindowHandle());
-                if (foreground != IntPtr.Zero && WindowEnumerator.IsCapturable(foreground, ownProcessId))
+                if (foreground != IntPtr.Zero && foreground != startingForeground && WindowEnumerator.IsCapturable(foreground, ownProcessId))
                 {
                     picked = foreground;
                     break;
+                }
+
+                if (foreground != startingForeground && foreground != IntPtr.Zero)
+                {
+                    // Focus moved somewhere that can't be recorded (e.g. the desktop); wait for the next window.
+                    startingForeground = foreground;
                 }
             }
 
