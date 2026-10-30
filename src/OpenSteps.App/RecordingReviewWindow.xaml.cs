@@ -7,6 +7,8 @@ using System.Windows.Input;
 using System.Windows.Threading;
 using OpenSteps.Core.Models;
 using OpenSteps.Core.Services;
+using RadioButton = System.Windows.Controls.RadioButton;
+using TextBox = System.Windows.Controls.TextBox;
 
 namespace OpenSteps.App;
 
@@ -330,7 +332,7 @@ public partial class RecordingReviewWindow : Window
         TimeText.Text = $"{TimeFormat.Format(position)} / {TimeFormat.Format(total)}";
     }
 
-    private void RecordingReviewWindow_PreviewKeyDown(object sender, KeyEventArgs e)
+    private void RecordingReviewWindow_PreviewKeyDown(object sender, System.Windows.Input.KeyEventArgs e)
     {
         if (e.OriginalSource is TextBox)
         {
