@@ -109,6 +109,7 @@ public partial class MainWindow
     private async Task BeginTimelineSegmentAsync()
     {
         RefreshPolicy();
+        RememberStepsBeforeRecording();
         try
         {
             _session.Environment = _environmentCollector.Collect();
@@ -186,6 +187,28 @@ public partial class MainWindow
                 WinForms.MessageBoxButtons.OK,
                 WinForms.MessageBoxIcon.Warning);
         }
+    }
+
+    /// <summary>Throws away the current segment: stops the encoder, deletes its video and its input events.</summary>
+    private async Task DiscardTimelineSegmentAsync()
+    {
+        if (_currentSegment is not { } segment)
+        {
+            return;
+        }
+
+        _clock.Stop();
+        if (_videoRecorder is { } recorder)
+        {
+            _videoRecorder = null;
+            await recorder.StopAsync();
+        }
+
+        TryDeleteFile(segment.VideoPath);
+        _session.Segments.Remove(segment);
+        _session.InputEvents.RemoveAll(inputEvent => inputEvent.Segment == segment.Number);
+        _currentSegment = null;
+        RaiseRecordingOptionsChanged();
     }
 
     /// <summary>Finalises an in-progress video synchronously so the MP4 is not left unreadable when the app closes.</summary>
@@ -271,7 +294,8 @@ public partial class MainWindow
 
     private void MouseHook_ButtonPressed(int x, int y)
     {
-        if (IsTimelineActive)
+        if (IsTimelineActive
+            && _clickTargetClassifier.ClassifyPoint(x, y, GetOpenStepsWindowHandles()).Classification != ClickClassification.OpenStepsWindow)
         {
             _videoRecorder?.MarkClick(x, y);
             _focusInspector.Invalidate();

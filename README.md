@@ -22,6 +22,7 @@ OpenSteps records what you do on Windows, captures screenshots and click context
 ## What It Does
 
 - Records desktop workflows with global click, right-click, and double-click capture.
+- Shows a small Pause / Stop / Cancel bar at the bottom of the screen while recording. It never takes focus from the app you are recording and is hidden from screenshots and the video. Cancel discards everything captured since you pressed Record.
 - Records a full-session MP4 video of all monitors (cursor and click rings included) using built-in Windows encoders.
 - Records a keystroke and mouse timeline: every key and shortcut (Ctrl+F, Alt+Tab, F5, Win+R...), typed text, scrolls, drags and middle clicks, each with a timestamp and the window it went to.
 - Masks typed text in password fields and fields that look like secrets (PIN, CVV, card number...). Typed-text capture can be switched off on the recorder bar, from the tray while recording, or by IT policy.
