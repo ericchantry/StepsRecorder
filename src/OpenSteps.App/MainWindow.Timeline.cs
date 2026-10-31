@@ -129,10 +129,12 @@ public partial class MainWindow
         _currentSegment = segment;
         _clock = new RecordingClock();
 
+        var captureTarget = CreateVideoCaptureTarget();
+        segment.CaptureArea = captureTarget.Description;
         if (RecordVideo)
         {
             var path = Path.Combine(GetSessionDirectory(), "videos", $"recording-{segment.Number}.mp4");
-            var recorder = new ScreenVideoRecorder(_clock, _settings.VideoFramesPerSecond);
+            var recorder = new ScreenVideoRecorder(_clock, _settings.VideoFramesPerSecond, captureTarget);
             try
             {
                 RecordingStatusText.Text = "Starting video…";
@@ -312,6 +314,11 @@ public partial class MainWindow
         var offset = OffsetAt(e.Timestamp);
         Dispatcher.BeginInvoke(() =>
         {
+            if (IsOutsideCaptureMonitor(e.X, e.Y))
+            {
+                return;
+            }
+
             var target = _clickTargetClassifier.ClassifyPoint(e.X, e.Y, GetOpenStepsWindowHandles());
             if (target.Classification == ClickClassification.OpenStepsWindow)
             {

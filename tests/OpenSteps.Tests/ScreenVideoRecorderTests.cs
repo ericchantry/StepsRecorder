@@ -59,3 +59,95 @@ public sealed class ScreenVideoRecorderTests
         await thumbnail.AsStreamForRead().CopyToAsync(output);
     }
 }
+
+public sealed class VideoFrameLayoutTests
+{
+    [Theory]
+    [InlineData(1920, 1080, 1920, 1080)]
+    [InlineData(1921, 1081, 1920, 1080)]
+    [InlineData(5760, 1080, 3840, 720)]
+    [InlineData(7680, 4320, 3840, 2160)]
+    public void OutputSize_FitsEncoderLimitsWithEvenDimensions(int width, int height, int expectedWidth, int expectedHeight)
+    {
+        Assert.Equal(new System.Drawing.Size(expectedWidth, expectedHeight), VideoFrameLayout.OutputSize(new System.Drawing.Size(width, height)));
+    }
+
+    [Fact]
+    public void Fit_LetterboxesSmallerMonitorIntoLargerFrame()
+    {
+        var target = VideoFrameLayout.Fit(new System.Drawing.Size(1920, 1080), new System.Drawing.Size(2560, 1600));
+
+        Assert.Equal(new System.Drawing.Rectangle(0, 80, 2560, 1440), target);
+    }
+
+    [Fact]
+    public void Fit_PillarboxesPortraitMonitor()
+    {
+        var target = VideoFrameLayout.Fit(new System.Drawing.Size(1080, 1920), new System.Drawing.Size(1920, 1080));
+
+        Assert.Equal(1080, target.Height);
+        Assert.Equal(608, target.Width);
+        Assert.Equal((1920 - 608) / 2, target.X);
+    }
+
+    [Fact]
+    public void Fit_WithoutUpscaleCentresSmallerWindow()
+    {
+        var target = VideoFrameLayout.Fit(new System.Drawing.Size(800, 600), new System.Drawing.Size(1600, 1000), allowUpscale: false);
+
+        Assert.Equal(new System.Drawing.Rectangle(400, 200, 800, 600), target);
+    }
+
+    [Fact]
+    public void Fit_WithoutUpscaleStillShrinksLargerWindow()
+    {
+        var target = VideoFrameLayout.Fit(new System.Drawing.Size(3200, 2000), new System.Drawing.Size(1600, 1000), allowUpscale: false);
+
+        Assert.Equal(new System.Drawing.Rectangle(0, 0, 1600, 1000), target);
+    }
+
+    [Fact]
+    public void Fit_SameSizeFillsFrame()
+    {
+        Assert.Equal(new System.Drawing.Rectangle(0, 0, 1920, 1080), VideoFrameLayout.Fit(new System.Drawing.Size(1920, 1080), new System.Drawing.Size(1920, 1080)));
+    }
+}
+
+public sealed class VideoCaptureTargetScreenTests
+{
+    /// <summary>Records the primary monitor only, then the active window's monitor. Needs OPENSTEPS_RUN_SCREEN_TESTS=1.</summary>
+    [Fact]
+    public async Task SingleMonitorAndFollowTargetsRecordAtMonitorSize()
+    {
+        if (Environment.GetEnvironmentVariable("OPENSTEPS_RUN_SCREEN_TESTS") != "1")
+        {
+            return;
+        }
+
+        var monitors = new MonitorService();
+        var primary = monitors.GetAllMonitors().First(m => m.IsPrimary);
+        var window = WindowEnumerator.GetCapturableWindows((uint)Environment.ProcessId).First(w => !w.IsMinimized);
+        foreach (var target in new[]
+                 {
+                     VideoCaptureTarget.SingleMonitor(primary, "primary"),
+                     VideoCaptureTarget.FollowActiveWindowMonitor(monitors),
+                     VideoCaptureTarget.SingleWindow(window.Handle, window.Title)
+                 })
+        {
+            var path = Path.Combine(Path.GetTempPath(), "OpenStepsTests", Guid.NewGuid().ToString("N"), "recording.mp4");
+            var clock = new RecordingClock();
+            var recorder = new ScreenVideoRecorder(clock, 10, target);
+            await recorder.StartAsync(path);
+            clock.Start();
+            await Task.Delay(1500);
+            clock.Stop();
+            var result = await recorder.StopAsync();
+
+            Assert.True(result.Succeeded, result.Error);
+            var expected = VideoFrameLayout.OutputSize(target.FrameSize);
+            Assert.Equal(expected.Width, result.Width);
+            Assert.Equal(expected.Height, result.Height);
+            Assert.True(new FileInfo(path).Length > 1000);
+        }
+    }
+}

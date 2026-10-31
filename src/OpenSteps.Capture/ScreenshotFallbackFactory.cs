@@ -20,7 +20,7 @@ public static class ScreenshotFallbackFactory
             ScreenshotWidth = fullDesktopResult.ScreenshotWidth,
             ScreenshotHeight = fullDesktopResult.ScreenshotHeight,
             RequestedScreenshotMode = requestedMode,
-            ActualScreenshotMode = ScreenshotMode.FullDesktop,
+            ActualScreenshotMode = fullDesktopResult.ActualScreenshotMode,
             UsedScreenshotFallback = true,
             ScreenshotError = error,
             CapturedBounds = fullDesktopResult.CapturedBounds,

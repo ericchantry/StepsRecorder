@@ -24,6 +24,13 @@ internal static partial class NativeMethods
     internal const int MDT_EFFECTIVE_DPI = 0;
     internal const int DWMWA_EXTENDED_FRAME_BOUNDS = 9;
     internal const uint GA_ROOT = 2;
+    internal const uint GA_ROOTOWNER = 3;
+    internal const uint GW_OWNER = 4;
+    internal const int GWL_EXSTYLE = -20;
+    internal const long WS_EX_TOOLWINDOW = 0x00000080;
+    internal const long WS_EX_NOACTIVATE = 0x08000000;
+    internal const int DWMWA_CLOAKED = 14;
+    internal const int SW_RESTORE = 9;
 
     internal delegate IntPtr LowLevelHookProc(int nCode, IntPtr wParam, IntPtr lParam);
 
@@ -112,6 +119,9 @@ internal static partial class NativeMethods
     [LibraryImport("user32.dll")]
     internal static partial IntPtr MonitorFromPoint(POINT point, uint flags);
 
+    [LibraryImport("user32.dll")]
+    internal static partial IntPtr MonitorFromWindow(IntPtr hwnd, uint flags);
+
     [DllImport("user32.dll", EntryPoint = "GetMonitorInfoW", CharSet = CharSet.Unicode, SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
     internal static extern bool GetMonitorInfo(IntPtr monitorHandle, ref MONITORINFOEX monitorInfo);
@@ -125,6 +135,38 @@ internal static partial class NativeMethods
 
     [DllImport("dwmapi.dll", PreserveSig = true)]
     internal static extern int DwmGetWindowAttribute(IntPtr hwnd, int dwAttribute, out RECT pvAttribute, int cbAttribute);
+
+    [DllImport("dwmapi.dll", EntryPoint = "DwmGetWindowAttribute", PreserveSig = true)]
+    internal static extern int DwmGetWindowAttributeInt(IntPtr hwnd, int dwAttribute, out int pvAttribute, int cbAttribute);
+
+    [LibraryImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static partial bool IsWindowVisible(IntPtr hwnd);
+
+    [LibraryImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static partial bool IsWindow(IntPtr hwnd);
+
+    [LibraryImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static partial bool IsIconic(IntPtr hwnd);
+
+    [LibraryImport("user32.dll")]
+    internal static partial IntPtr GetWindow(IntPtr hwnd, uint command);
+
+    [LibraryImport("user32.dll", EntryPoint = "GetWindowLongPtrW")]
+    internal static partial IntPtr GetWindowLongPtr(IntPtr hwnd, int index);
+
+    [LibraryImport("user32.dll", EntryPoint = "GetWindowTextLengthW")]
+    internal static partial int GetWindowTextLength(IntPtr hwnd);
+
+    [LibraryImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static partial bool ShowWindow(IntPtr hwnd, int command);
+
+    [LibraryImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static partial bool SetForegroundWindow(IntPtr hwnd);
 
     internal delegate bool MonitorEnumProc(IntPtr monitorHandle, IntPtr hdcMonitor, ref RECT monitorRect, IntPtr data);
 

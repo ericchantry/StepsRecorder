@@ -37,13 +37,13 @@ Silent, from a file share (the script and zip can live anywhere the user can rea
 
 ```powershell
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File \\fileserver\software\OpenSteps\Install-OpenSteps.ps1 `
-    -Source \\fileserver\software\OpenSteps\OpenSteps-0.2.0-win-x64.zip -Quiet
+    -Source \\fileserver\software\OpenSteps\OpenSteps-0.2.1-win-x64.zip -Quiet
 ```
 
 Silent, straight from GitHub with a pinned version and hash:
 
 ```powershell
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\Install-OpenSteps.ps1 -Version v0.2.0 -ExpectedSha256 <hash> -Quiet
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\Install-OpenSteps.ps1 -Version v0.2.1 -ExpectedSha256 <hash> -Quiet
 ```
 
 | Parameter | Purpose |
@@ -84,7 +84,7 @@ commands and detection rule, with **Installation behavior: Install for user**.
 User Configuration > Policies > Windows Settings > Scripts > Logon:
 
 ```text
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File \\fileserver\software\OpenSteps\Install-OpenSteps.ps1 -Source \\fileserver\software\OpenSteps\OpenSteps-0.2.0-win-x64.zip -Quiet
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File \\fileserver\software\OpenSteps\Install-OpenSteps.ps1 -Source \\fileserver\software\OpenSteps\OpenSteps-0.2.1-win-x64.zip -Quiet
 ```
 
 Replace the zip on the share to roll out a new version.
