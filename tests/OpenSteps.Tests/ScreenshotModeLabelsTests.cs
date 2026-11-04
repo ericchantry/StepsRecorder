@@ -10,6 +10,7 @@ public sealed class ScreenshotModeLabelsTests
     [InlineData(ScreenshotMode.ActiveWindow, "Active Window")]
     [InlineData(ScreenshotMode.Monitor, "Single Monitor")]
     [InlineData(ScreenshotMode.Window, "Single Window")]
+    [InlineData(ScreenshotMode.Region, "Screen Region")]
     public void GetDisplayText_ReturnsReadableModeName(ScreenshotMode mode, string expected)
     {
         Assert.Equal(expected, ScreenshotModeLabels.GetDisplayText(mode));
@@ -32,5 +33,11 @@ public sealed class ScreenshotModeLabelsTests
     {
         Assert.True(ScreenshotModeLabels.AreSideBySide([(-1920, 0), (0, 3440), (3440, 6000)]));
         Assert.False(ScreenshotModeLabels.AreSideBySide([(0, 1920), (0, 1920)]));
+    }
+
+    [Fact]
+    public void GetRegionLabel_ShowsSize()
+    {
+        Assert.Equal("Region · 1280×720", ScreenshotModeLabels.GetRegionLabel(1280, 720));
     }
 }

@@ -29,7 +29,8 @@ public static class ScreenshotFallbackFactory
             HighlightX = fullDesktopResult.HighlightX,
             HighlightY = fullDesktopResult.HighlightY,
             HighlightWasInsideCapturedBounds = fullDesktopResult.HighlightWasInsideCapturedBounds,
-            BoundsSource = fullDesktopResult.BoundsSource
+            BoundsSource = fullDesktopResult.BoundsSource,
+            SensitiveFieldsHidden = fullDesktopResult.SensitiveFieldsHidden
         };
     }
 }

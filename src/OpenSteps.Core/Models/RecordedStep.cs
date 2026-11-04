@@ -173,6 +173,9 @@ public sealed class RecordedStep
 
     public bool IsSensitiveInput { get; set; }
 
+    /// <summary>Password or sensitive fields covered in this step's screenshot when it was captured.</summary>
+    public int SensitiveFieldsHidden { get; set; }
+
     public string? InputTargetName { get; set; }
 
     public string? InputTargetControlType { get; set; }

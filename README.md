@@ -27,6 +27,13 @@ Everything stays on your computer. No account, no cloud, no telemetry, and no ad
 - **Bug reports and QA** – exact steps to reproduce an issue, with the video and every keystroke to prove it.
 - **Support** – customer and internal walkthroughs.
 
+## What's new in 0.3
+
+- **Record a screen region.** Choose **Select a region…** in the Capture list and drag a rectangle over the part of the screen you want. Screenshots and video show only that area; a dashed outline (which doesn't appear in the recording) marks it while you record.
+- **Click markers that say what happened.** Every screenshot marks the click point with a ring and a label: red **Click**, blue **Right-click**, purple **Double-click**, green **Middle-click**. The video shows the same colours as an animated ring.
+- **Cursor highlight.** A soft yellow halo follows the mouse pointer in the video so viewers can see where it is. Turn it off with **Highlight cursor** on the recorder bar.
+- **Password and sensitive fields are covered at capture time.** Password fields, and fields named like PIN, CVV, card number, SSN or security code, are blacked out in screenshots and in every video frame before anything is saved. The original pixels are never written to disk.
+
 ## What's new in 0.2
 
 - **Session video.** An MP4 of all your monitors, a single monitor, or whichever monitor you're working on, with the cursor and a highlight on every click. Paused time is cut out.
@@ -63,8 +70,10 @@ OpenSteps is not code-signed yet. SmartScreen may warn on first launch, and secu
      - *Left / Middle / Right monitor* (or *Monitor 1, 2…* when they aren't side by side) – just that monitor. Clicks and typing on your other monitors are ignored, so nothing from them ends up in the guide or the timeline.
      - *Active window* – screenshots show only the window you're working in, and the video follows whichever monitor that window is on.
      - *Window · …* – one app window you choose, e.g. *Window · Q3 Budget.xlsx - Excel*. Screenshots and the video show only that window, following it if you move or resize it (pop-up menus and dialogs show where they overlap it). Clicks and typing in other apps still become steps, but their screenshots show the chosen window. Pick from the list of open windows, or choose **Pick a window by clicking it…** and click the one you want; it's outlined so you can confirm.
+     - *Region · 1280×720* – a rectangle you draw. Choose **Select a region…**, drag over the area (Esc cancels, Enter keeps the current one), and screenshots and the video show only that area. Clicks outside it, and typing in windows that don't overlap it, are ignored. The region is remembered until you draw a new one.
    - **Video** – record a video of the session.
    - **Typed text** – record the characters you type (password fields are always masked).
+   - **Highlight cursor** – show a yellow halo around the pointer in the video. Clicks are always marked, in screenshots and video, with a colour and label for each kind of click.
 2. **Press Record** (●). The recorder bar hides and a small bar appears at the bottom of the screen:
    - **Pause / Resume** – nothing is recorded while paused, and the pause is cut from the video.
    - **Stop** – finish and open the guide editor.
@@ -107,7 +116,8 @@ OpenSteps only records while you have pressed Record, and shows the recording ba
 Each session holds a `session.json` (steps, input timeline, system details), its screenshots and its videos. You can reopen, rename, edit, export or delete sessions.
 
 - **Typed text** is on by default so repro steps show exactly what was entered. Characters typed into password fields, or fields named like PIN, CVV, card number or security code, are never stored. Turn **Typed text** off on the recorder bar or from the tray to record only key names, shortcuts and key counts. IT can force it off.
-- **The video records everything visible on screen**, including text as it appears in non-password fields. Pause before showing anything private, and review the video before you share an export.
+- **Password and sensitive fields are covered** in screenshots and in the video as they are captured, so their contents never reach the disk. OpenSteps finds them with Windows UI Automation: password fields, and fields whose name looks like a secret (PIN, CVV, card number, SSN, security code, API key…). It reads where these fields are and what they are called, never what is in them.
+- **The video records everything else visible on screen**, including text in ordinary fields. Pause before showing anything private, and review the video before you share an export.
 - **Screenshots** can contain private data too. Use crop and redaction, or Active Window mode, and review every step.
 - **System details** never include your user name, computer name or network details.
 
@@ -129,7 +139,7 @@ Build the release package (self-contained zip with the install scripts, plus its
 .\build\Publish-OpenSteps.ps1
 ```
 
-Pushing a version tag (for example `v0.2.1`) runs the GitHub Actions release workflow, which builds, tests and publishes the zip to Releases.
+Pushing a version tag (for example `v0.3.0`) runs the GitHub Actions release workflow, which builds, tests and publishes the zip to Releases.
 
 Project layout:
 
@@ -149,14 +159,15 @@ Project layout:
 - The UAC prompt and lock screen can't be captured; the video shows the last visible frame.
 - Typed text is rebuilt from key presses. Backspace is applied, but edits made by moving the cursor, accents typed with dead keys, and IME input may not come out exactly; the raw key sequence is kept on the timeline.
 - In *All monitors* mode the video puts every monitor in one frame, scaled down to fit 3840×2160 on very wide desktops; pick a single monitor for a sharper video. In *Active window* mode the video switches monitors as you move between them, with black bars when monitors differ in size. Screenshot crop and redaction don't apply to the video.
-- Some apps expose little UI Automation information, so their step titles fall back to the window name.
+- Some apps expose little UI Automation information, so their step titles fall back to the window name. Such apps can also hide a password field from OpenSteps, in which case it isn't covered; the characters typed into it are still masked when Windows reports the field as a password field.
+- Sensitive-field covering follows a field about five times a second in the video, so a field in a window that is being dragged can briefly show at its edge. Fields are found in the window you're working in (and the chosen window in *Window* mode), not in windows behind it.
 - Active-window screenshots fall back to the monitor you clicked on when Windows can't report usable window bounds.
 - Full-screen and DRM-protected content may not be captured.
 - Windows only.
 
 ## Roadmap
 
-- Redaction for video.
+- Manual redaction for video.
 - More reliable capture around unusual shell surfaces.
 - Better generated titles from UI Automation metadata.
 - Richer HTML export styling.

@@ -47,4 +47,7 @@ public sealed class ScreenshotCaptureResult
     public bool HighlightWasInsideCapturedBounds { get; init; }
 
     public string? BoundsSource { get; init; }
+
+    /// <summary>Number of password or sensitive fields covered in this screenshot.</summary>
+    public int SensitiveFieldsHidden { get; init; }
 }

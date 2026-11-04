@@ -65,6 +65,28 @@ public partial class MainWindow
         }
     }
 
+    /// <summary>Show a halo around the pointer in the video. Clicks are always marked in screenshots and video.</summary>
+    public bool HighlightCursor
+    {
+        get => _settings.HighlightCursor;
+        set
+        {
+            if (_settings.HighlightCursor == value)
+            {
+                return;
+            }
+
+            _settings.HighlightCursor = value;
+            RaiseRecordingOptionsChanged();
+            if (!_loadingSettings)
+            {
+                _ = SaveSettingsAsync();
+            }
+        }
+    }
+
+    public bool IsHighlightCursorOptionEnabled => RecordVideo && !_isRecording;
+
     public bool IsVideoOptionEnabled => !_policy.DisableVideoRecording && !_isRecording;
 
     public bool IsTypedTextOptionEnabled => !_policy.DisableTypedTextCapture;
@@ -75,7 +97,7 @@ public partial class MainWindow
 
     public string TypedTextOptionToolTip => _policy.DisableTypedTextCapture
         ? "Recording typed text has been turned off by your IT department. Key names and shortcuts are still recorded."
-        : "Record the characters you type. Password and other sensitive fields are always masked. Can be switched off from the tray icon while recording.";
+        : "Record the characters you type. Password and other sensitive fields are always masked, and covered in screenshots and video. Can be switched off from the tray icon while recording.";
 
     private bool IsTimelineActive => _isRecording && !_isPaused && _currentSegment is not null && _screenshotCaptureTargetStep is null;
 
@@ -86,6 +108,7 @@ public partial class MainWindow
         foreach (var name in new[]
                  {
                      nameof(RecordVideo), nameof(CaptureTypedText), nameof(IsVideoOptionEnabled),
+                     nameof(HighlightCursor), nameof(IsHighlightCursorOptionEnabled),
                      nameof(IsTypedTextOptionEnabled), nameof(VideoOptionToolTip), nameof(TypedTextOptionToolTip)
                  })
         {
@@ -131,10 +154,23 @@ public partial class MainWindow
 
         var captureTarget = CreateVideoCaptureTarget();
         segment.CaptureArea = captureTarget.Description;
+
+        // Watch for password and sensitive fields while recording so screenshots and video frames can cover them.
+        var secureFields = _screenshotService.SecureFields;
+        if (secureFields is not null)
+        {
+            secureFields.ExtraWindow = ScreenshotMode == ScreenshotMode.Window ? _captureWindowHandle : IntPtr.Zero;
+            secureFields.Start();
+        }
+
         if (RecordVideo)
         {
             var path = Path.Combine(GetSessionDirectory(), "videos", $"recording-{segment.Number}.mp4");
-            var recorder = new ScreenVideoRecorder(_clock, _settings.VideoFramesPerSecond, captureTarget);
+            var recorder = new ScreenVideoRecorder(_clock, _settings.VideoFramesPerSecond, captureTarget)
+            {
+                HighlightCursor = HighlightCursor,
+                SensitiveAreas = secureFields is null ? null : secureFields.GetCurrentAreas
+            };
             try
             {
                 RecordingStatusText.Text = "Starting video…";
@@ -162,6 +198,7 @@ public partial class MainWindow
         }
 
         _clock.Stop();
+        _screenshotService.SecureFields?.Stop();
         segment.DurationSeconds = Math.Round(_clock.Elapsed.TotalSeconds, 2);
         if (_videoRecorder is { } recorder)
         {
@@ -200,6 +237,7 @@ public partial class MainWindow
         }
 
         _clock.Stop();
+        _screenshotService.SecureFields?.Stop();
         if (_videoRecorder is { } recorder)
         {
             _videoRecorder = null;
@@ -294,12 +332,12 @@ public partial class MainWindow
         AddInputEvent(new InputEvent { Kind = kind, X = x, Y = y }, offset, rootWindow);
     }
 
-    private void MouseHook_ButtonPressed(int x, int y)
+    private void MouseHook_ButtonPressed(int x, int y, string button)
     {
         if (IsTimelineActive
             && _clickTargetClassifier.ClassifyPoint(x, y, GetOpenStepsWindowHandles()).Classification != ClickClassification.OpenStepsWindow)
         {
-            _videoRecorder?.MarkClick(x, y);
+            _videoRecorder?.MarkClick(x, y, ClickMarkers.FromButton(button));
             _focusInspector.Invalidate();
         }
     }

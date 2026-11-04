@@ -12,11 +12,32 @@ public static class WindowHighlight
 {
     private const int Thickness = 5;
 
+    private static readonly Color FlashColor = Color.FromArgb(255, 76, 110, 245);
+    private static readonly Color RecordingColor = Color.FromArgb(255, 229, 72, 77);
+
+    /// <summary>
+    /// Keeps an outline just outside <paramref name="bounds"/> until the returned form is closed, e.g. around the
+    /// region being recorded. It is click-through and excluded from screenshots and video.
+    /// </summary>
+    public static WinForms.Form? ShowOutline(Rectangle bounds)
+    {
+        try
+        {
+            var frame = new HighlightForm(Rectangle.Inflate(bounds, Thickness, Thickness), RecordingColor, dashed: true);
+            frame.Show();
+            return frame;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
     public static void Flash(Rectangle bounds, int milliseconds = 1400)
     {
         try
         {
-            var frame = new HighlightForm(Rectangle.Inflate(bounds, Thickness, Thickness));
+            var frame = new HighlightForm(Rectangle.Inflate(bounds, Thickness, Thickness), FlashColor, dashed: false);
             frame.Show();
             var timer = new WinForms.Timer { Interval = milliseconds };
             timer.Tick += (_, _) =>
@@ -42,10 +63,14 @@ public static class WindowHighlight
         private const int WS_EX_NOACTIVATE = 0x08000000;
 
         private readonly Rectangle _screenBounds;
+        private readonly Color _color;
+        private readonly bool _dashed;
 
-        public HighlightForm(Rectangle screenBounds)
+        public HighlightForm(Rectangle screenBounds, Color color, bool dashed)
         {
             _screenBounds = screenBounds;
+            _color = color;
+            _dashed = dashed;
             FormBorderStyle = WinForms.FormBorderStyle.None;
             ShowInTaskbar = false;
             StartPosition = WinForms.FormStartPosition.Manual;
@@ -89,8 +114,13 @@ public static class WindowHighlight
         protected override void OnPaint(WinForms.PaintEventArgs e)
         {
             base.OnPaint(e);
-            using var pen = new Pen(Color.FromArgb(255, 76, 110, 245), Thickness);
+            using var pen = new Pen(_color, Thickness);
             pen.Alignment = System.Drawing.Drawing2D.PenAlignment.Inset;
+            if (_dashed)
+            {
+                pen.DashStyle = System.Drawing.Drawing2D.DashStyle.Dash;
+            }
+
             e.Graphics.DrawRectangle(pen, 0, 0, Width - 1, Height - 1);
         }
 

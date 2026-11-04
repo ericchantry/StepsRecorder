@@ -4,7 +4,7 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d"
-        Title="OpenSteps" Height="76" Width="1040" MinHeight="76" MinWidth="1040"
+        Title="OpenSteps" Height="76" Width="1170" MinHeight="76" MinWidth="1170"
         WindowStyle="None" ResizeMode="NoResize" AllowsTransparency="True"
         Background="Transparent" Topmost="True">
     <Window.Resources>
@@ -161,7 +161,7 @@
                           MaxDropDownHeight="440"
                           Width="208"
                           Style="{StaticResource PillComboBox}"
-                          ToolTip="All monitors: screenshots and video show every monitor.&#x0a;A single monitor: only that monitor is recorded; clicks and typing on other monitors are ignored.&#x0a;Active window: screenshots show the window you are working in, and the video follows the monitor it is on.&#x0a;Window · …: screenshots and video show only that window, wherever it is moved. Use Pick a window to click the one you want." />
+                          ToolTip="All monitors: screenshots and video show every monitor.&#x0a;A single monitor: only that monitor is recorded; clicks and typing on other monitors are ignored.&#x0a;Active window: screenshots show the window you are working in, and the video follows the monitor it is on.&#x0a;Window · …: screenshots and video show only that window, wherever it is moved. Use Pick a window to click the one you want.&#x0a;Region: screenshots and video show only a rectangle you draw. Use Select a region to draw a new one." />
 
                 <Rectangle Style="{StaticResource Divider}" />
 
@@ -177,6 +177,14 @@
                           IsChecked="{Binding CaptureTypedText, Mode=TwoWay}"
                           IsEnabled="{Binding IsTypedTextOptionEnabled}"
                           ToolTip="{Binding TypedTextOptionToolTip}"
+                          ToolTipService.ShowOnDisabled="True"
+                          VerticalAlignment="Center"
+                          FontSize="12.5"
+                          Margin="12,0,0,0" />
+                <CheckBox Content="Highlight cursor"
+                          IsChecked="{Binding HighlightCursor, Mode=TwoWay}"
+                          IsEnabled="{Binding IsHighlightCursorOptionEnabled}"
+                          ToolTip="Show a yellow halo around the mouse pointer in the video so viewers can follow it.&#x0a;Clicks are always marked: red for a click, blue for a right-click, purple for a double-click, green for a middle-click."
                           ToolTipService.ShowOnDisabled="True"
                           VerticalAlignment="Center"
                           FontSize="12.5"

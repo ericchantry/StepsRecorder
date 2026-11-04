@@ -135,3 +135,30 @@ Use this checklist before demoing OpenSteps.
 6. Choose **Pick a window by clicking it…**, click a window's title bar, and confirm the banner disappears, the window is outlined and it is selected in the list. Try again and click **Cancel**; confirm the previous choice stays.
 7. Close the chosen window and press Record; confirm OpenSteps says the window is no longer open and does not start.
 8. Restart OpenSteps with the same window still open; confirm it is still selected.
+
+## Screen Region
+
+1. Open the **Capture** list and choose **Select a region…**. Confirm the recorder bar hides, the screen dims with a banner at the top, and the cursor is a crosshair.
+2. Press Esc; confirm nothing changes and the previous choice is back in the list. Right-click does the same.
+3. Choose it again and drag a rectangle (try dragging up and to the left). Confirm the size label follows the drag, the area is outlined in blue after release, and the list shows **Region · W×H**.
+4. Try a tiny drag (a click); confirm it is ignored and you can drag again.
+5. Press Record. Confirm a dashed red outline surrounds the region and does not appear in screenshots or the video.
+6. Click inside the region, outside it, and type in a window that doesn't overlap it. Stop. Confirm only the click inside became a step, screenshots and video show only the region, and the timeline has nothing from outside it.
+7. Choose **Select a new region…** and press Enter; confirm the current region is kept.
+8. Draw a region on a second monitor, disconnect that monitor, and press Record; confirm OpenSteps asks for a new region instead of starting.
+
+## Click Markers And Cursor Highlight
+
+1. Record a click, a right-click, a double-click and a middle-click (middle-click only shows in the video).
+2. Confirm screenshots show a red **Click**, blue **Right-click** and purple **Double-click** ring with a label, the label stays inside the image for clicks near an edge, and the ring is visible on both light and dark backgrounds.
+3. Play the video. Confirm each click shows a growing ring in the same colour with L, R, 2× or M, and a yellow halo follows the pointer.
+4. Untick **Highlight cursor**, record again, and confirm the halo is gone but click rings remain. Confirm the box can't be changed while recording or with video off.
+
+## Sensitive Field Covering
+
+1. Open a sign-in page (or any app with a password box) and a form with a field labelled e.g. *Card number* or *PIN*.
+2. Record clicking into the password box and typing, then into the card-number field and typing.
+3. Stop. Confirm both fields are covered by a dark block labelled *Hidden by OpenSteps* in the screenshots and throughout the video, including while typing, and the timeline shows the typed text as masked.
+4. Move the window while the password box is focused; confirm the cover moves with it.
+5. Confirm ordinary fields (e.g. *Search*, *Name*) are not covered.
+
