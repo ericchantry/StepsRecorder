@@ -29,6 +29,8 @@ Everything stays on your computer. No account, no cloud, no telemetry, and no ad
 
 ## What's new in 0.4
 
+Full release history: [CHANGELOG.md](CHANGELOG.md).
+
 - **A step editor.** Click the pencil on any step to crop its screenshot, add numbered callouts, boxes, arrows, highlights and blur, and edit its title and description, all in one window. Callouts number themselves and close up when one is removed. Right-click an edit to remove it; undo and redo work throughout.
 - **Your original capture is never changed.** Edits are saved as a list and drawn onto a copy, so you can open a step again later and move on from where you left off, remove a single arrow, change the crop, or choose **Reset to original**.
 - **Shorter, plainer step titles.** `Click "Save"` instead of `Click the 'Save' button`, `Type "invoice 1042" in "Search"`, `Open the "Home" tab`, `Select "Documents"`, `Press Ctrl+S to save`, and `Click in Excel` instead of the whole window title. Labels lose shortcut hints and trailing "…", and long ones are shortened. The step editor offers the suggested title if you've changed it and want it back.
