@@ -29,4 +29,30 @@ public sealed class SettingsServiceTests
 
         Assert.Equal(ScreenshotMode.FullDesktop, settings.ScreenshotMode);
     }
+
+    [Fact]
+    public async Task SaveAndLoadAsync_PreservesCaptureRegionAndCursorHighlight()
+    {
+        var path = Path.Combine(Path.GetTempPath(), "OpenSteps.Tests", Guid.NewGuid().ToString("N"), "settings.json");
+        var service = new SettingsService(path);
+
+        await service.SaveAsync(new AppSettings
+        {
+            ScreenshotMode = ScreenshotMode.Region,
+            CaptureRegion = new ScreenBounds(-1920, 40, 1280, 720),
+            HighlightCursor = false
+        });
+
+        var loaded = await service.LoadAsync();
+        Assert.Equal(ScreenshotMode.Region, loaded.ScreenshotMode);
+        Assert.Equal(new ScreenBounds(-1920, 40, 1280, 720), loaded.CaptureRegion);
+        Assert.False(loaded.HighlightCursor);
+    }
+
+    [Fact]
+    public void NewSettings_HighlightCursorByDefault()
+    {
+        Assert.True(new AppSettings().HighlightCursor);
+        Assert.Null(new AppSettings().CaptureRegion);
+    }
 }

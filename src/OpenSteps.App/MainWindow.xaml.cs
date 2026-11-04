@@ -21,7 +21,8 @@ public sealed record ScreenshotModeOption(
     IntPtr WindowHandle = default,
     string? WindowTitle = null,
     string? WindowProcessName = null,
-    bool IsPicker = false)
+    bool IsPicker = false,
+    ScreenBounds? Region = null)
 {
     // The styled ComboBox shows the selected item via ToString(), which for a record would print its type name.
     public override string ToString() => DisplayName;
@@ -196,7 +197,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private async Task StartRecordingAsync()
     {
         await LoadSettingsAsync();
-        if (!PrepareCaptureWindow())
+        if (!PrepareCaptureWindow() || !PrepareCaptureRegion())
         {
             return;
         }
@@ -400,7 +401,15 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
             try
             {
-                var screenshot = await _screenshotService.CaptureAsync(GetSessionImagesDirectory(), step.Index, x, y, ScreenshotMode, resolution?.TargetHwnd ?? IntPtr.Zero);
+                var screenshot = await _screenshotService.CaptureAsync(
+                    GetSessionImagesDirectory(),
+                    step.Index,
+                    x,
+                    y,
+                    ScreenshotMode,
+                    resolution?.TargetHwnd ?? IntPtr.Zero,
+                    drawHighlight: true,
+                    markerKind: ClickMarkers.For(actionType, mouseButton));
                 ApplyScreenshotResult(step, screenshot);
                 step.ScreenshotCaptured = true;
             }
@@ -1519,6 +1528,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private void ShowRecordingTray()
     {
         ShowRecordingBar();
+        ShowCaptureRegionOutline();
         EnsureTrayIcon();
         if (_trayIcon is null)
         {
@@ -1537,6 +1547,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private void HideRecordingTray()
     {
         HideRecordingBar();
+        HideCaptureRegionOutline();
         if (_trayIcon is null)
         {
             return;
@@ -1808,6 +1819,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         step.LocalClickY = screenshot.LocalClickY;
         step.ScreenshotWidth = screenshot.ScreenshotWidth;
         step.ScreenshotHeight = screenshot.ScreenshotHeight;
+        step.SensitiveFieldsHidden = screenshot.SensitiveFieldsHidden;
         step.MonitorDeviceName = screenshot.Monitor?.DeviceName;
         step.MonitorIndex = screenshot.Monitor?.Index;
         step.MonitorBoundsLeft = screenshot.Monitor?.BoundsLeft;

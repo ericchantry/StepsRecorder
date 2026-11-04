@@ -11,6 +11,7 @@ public static class ScreenshotModeLabels
             ScreenshotMode.ActiveWindow => "Active Window",
             ScreenshotMode.Monitor => "Single Monitor",
             ScreenshotMode.Window => "Single Window",
+            ScreenshotMode.Region => "Screen Region",
             _ => "Full Desktop"
         };
     }
@@ -36,6 +37,12 @@ public static class ScreenshotModeLabels
         };
 
         return $"{name} · {width}×{height}{(isPrimary ? " · main" : string.Empty)}";
+    }
+
+    /// <summary>Label for a drawn capture region, e.g. "Region · 1280×720".</summary>
+    public static string GetRegionLabel(int width, int height)
+    {
+        return $"Region · {width}×{height}";
     }
 
     /// <summary>True when every monitor (sorted by left edge) starts at or after the previous one's right edge.</summary>

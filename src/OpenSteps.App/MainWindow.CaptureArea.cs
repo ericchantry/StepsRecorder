@@ -6,9 +6,9 @@ using OpenSteps.Core.Services;
 namespace OpenSteps.App;
 
 /// <summary>
-/// The "Capture" choice on the recorder bar: all monitors, one monitor, the active window, or one chosen window.
-/// It decides what screenshots and the video cover, and in single-monitor mode it also
-/// ignores clicks and typing on the other monitors.
+/// The "Capture" choice on the recorder bar: all monitors, one monitor, the active window, one chosen window,
+/// or a region drawn on screen. It decides what screenshots and the video cover, and in single-monitor and
+/// region modes it also ignores clicks and typing outside that area.
 /// </summary>
 public partial class MainWindow
 {
@@ -19,6 +19,7 @@ public partial class MainWindow
     private ScreenshotModeOption? _optionBeforePick;
     private string? _captureMonitorDeviceName;
     private System.Drawing.Rectangle? _captureMonitorBounds;
+    private System.Windows.Forms.Form? _regionOutline;
     private ScreenshotModeOption? _selectedCaptureOption;
     private bool _refreshingCaptureOptions;
 
@@ -40,13 +41,16 @@ public partial class MainWindow
                 {
                     _optionBeforePick = _selectedCaptureOption;
                     _selectedCaptureOption = value;
-                    _ = PickWindowAsync();
+                    _ = value.Mode == ScreenshotMode.Region ? PickRegionAsync() : PickWindowAsync();
                 }
 
                 return;
             }
 
             _selectedCaptureOption = value;
+
+            // Set again from the new choice when the next recording segment starts.
+            _captureMonitorBounds = null;
             if (value.Mode == ScreenshotMode.Window)
             {
                 _captureWindowHandle = value.WindowHandle;
@@ -54,7 +58,13 @@ public partial class MainWindow
                 _settings.CaptureWindowProcessName = value.WindowProcessName;
             }
 
+            if (value.Mode == ScreenshotMode.Region && value.Region is { } region)
+            {
+                _settings.CaptureRegion = region;
+            }
+
             _screenshotService.SelectedWindowHandle = value.Mode == ScreenshotMode.Window ? value.WindowHandle : IntPtr.Zero;
+            _screenshotService.SelectedRegion = value.Mode == ScreenshotMode.Region && value.Region is { } selectedRegion ? ToRectangle(selectedRegion) : null;
             _captureMonitorDeviceName = value.MonitorDeviceName;
             _settings.CaptureMonitorDeviceName = value.MonitorDeviceName;
             _screenshotService.SelectedMonitorDeviceName = value.MonitorDeviceName;
@@ -98,6 +108,14 @@ public partial class MainWindow
         }
 
         options.Add(new ScreenshotModeOption("Active window", ScreenshotMode.ActiveWindow));
+
+        var savedRegion = GetSavedRegion();
+        if (savedRegion is { } region)
+        {
+            options.Add(new ScreenshotModeOption(ScreenshotModeLabels.GetRegionLabel(region.Width, region.Height), ScreenshotMode.Region, Region: region));
+        }
+
+        options.Add(new ScreenshotModeOption(savedRegion is null ? "Select a region…" : "Select a new region…", ScreenshotMode.Region, IsPicker: true));
 
         IReadOnlyList<CapturableWindow> windows;
         try
@@ -167,6 +185,7 @@ public partial class MainWindow
         {
             ScreenshotMode.Monitor when _selectedCaptureOption?.Mode == ScreenshotMode.Monitor => _selectedCaptureOption.DisplayName.Split(" · ")[0],
             ScreenshotMode.Window => "Window",
+            ScreenshotMode.Region => "Region",
             _ => ScreenshotModeLabels.GetDisplayText(ScreenshotMode)
         };
     }
@@ -280,6 +299,114 @@ public partial class MainWindow
         }
     }
 
+    /// <summary>Lets the user draw the area to record, then selects it and outlines it briefly.</summary>
+    private async Task PickRegionAsync()
+    {
+        _pickingWindow = true;
+        ScreenBounds? picked = null;
+        var wasVisible = IsVisible;
+        try
+        {
+            // Get the recorder bar out of the way so the area under it can be selected.
+            if (wasVisible)
+            {
+                Hide();
+                await Task.Delay(200);
+            }
+
+            picked = RegionSelector.Select(GetSavedRegion());
+        }
+        catch (Exception ex)
+        {
+            System.Windows.MessageBox.Show(this, $"The region could not be selected:\n{ex.Message}", "OpenSteps", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Warning);
+        }
+        finally
+        {
+            _pickingWindow = false;
+            if (wasVisible)
+            {
+                Show();
+                Activate();
+            }
+        }
+
+        if (picked is not { } region)
+        {
+            RestoreCaptureComboSelection();
+            return;
+        }
+
+        _settings.CaptureRegion = region;
+        ScreenshotMode = ScreenshotMode.Region;
+        RefreshCaptureOptions();
+        WindowHighlight.Flash(ToRectangle(region));
+    }
+
+    /// <summary>The saved region, trimmed to the monitors connected now; null if there is none or it is off screen.</summary>
+    private ScreenBounds? GetSavedRegion()
+    {
+        if (_settings.CaptureRegion is not { } region)
+        {
+            return null;
+        }
+
+        var screen = System.Windows.Forms.SystemInformation.VirtualScreen;
+        return CaptureRegionMath.ClampToScreen(region, new ScreenBounds(screen.X, screen.Y, screen.Width, screen.Height));
+    }
+
+    /// <summary>
+    /// Before recording in region mode: make sure the region is still on screen. Returns false (after telling the
+    /// user) when it isn't, e.g. because the monitor it was on has been disconnected.
+    /// </summary>
+    private bool PrepareCaptureRegion()
+    {
+        if (_screenshotCaptureTargetStep is not null || ScreenshotMode != ScreenshotMode.Region)
+        {
+            return true;
+        }
+
+        if (GetSavedRegion() is not { } region)
+        {
+            System.Windows.MessageBox.Show(
+                this,
+                "The screen region chosen for recording is no longer on screen.\n\nUse \"Select a region…\" in the Capture list to draw a new one.",
+                "OpenSteps",
+                System.Windows.MessageBoxButton.OK,
+                System.Windows.MessageBoxImage.Information);
+            return false;
+        }
+
+        _screenshotService.SelectedRegion = ToRectangle(region);
+        return true;
+    }
+
+    /// <summary>While recording a region, keeps a dashed outline just outside it (not visible in the recording).</summary>
+    private void ShowCaptureRegionOutline()
+    {
+        HideCaptureRegionOutline();
+        if (ScreenshotMode == ScreenshotMode.Region && GetSavedRegion() is { } region)
+        {
+            _regionOutline = WindowHighlight.ShowOutline(ToRectangle(region));
+        }
+    }
+
+    private void HideCaptureRegionOutline()
+    {
+        if (_regionOutline is { } outline)
+        {
+            _regionOutline = null;
+            try
+            {
+                outline.Close();
+                outline.Dispose();
+            }
+            catch
+            {
+                // The outline is only a visual hint.
+            }
+        }
+    }
+
     /// <summary>
     /// Before recording in window mode: make sure the chosen window still exists and isn't minimized.
     /// Returns false (after telling the user) when it has been closed.
@@ -328,14 +455,23 @@ public partial class MainWindow
                 return VideoCaptureTarget.FollowActiveWindowMonitor(_monitorService);
             case ScreenshotMode.Window when _captureWindowHandle != IntPtr.Zero:
                 return VideoCaptureTarget.SingleWindow(_captureWindowHandle, _selectedCaptureOption?.DisplayName ?? "Window");
+            case ScreenshotMode.Region when GetSavedRegion() is { } region:
+                _captureMonitorBounds = ToRectangle(region);
+                return VideoCaptureTarget.Region(ToRectangle(region), ScreenshotModeLabels.GetRegionLabel(region.Width, region.Height));
             default:
                 return VideoCaptureTarget.AllMonitors();
         }
     }
 
-    /// <summary>In single-monitor mode, true for screen points on any other monitor.</summary>
+    /// <summary>In single-monitor mode, true for screen points on any other monitor; in region mode, for points outside the region.</summary>
     private bool IsOutsideCaptureMonitor(int x, int y)
     {
+        if (ScreenshotMode == ScreenshotMode.Region)
+        {
+            var region = _captureMonitorBounds ?? (GetSavedRegion() is { } saved ? ToRectangle(saved) : null);
+            return region is { } area && !area.Contains(x, y);
+        }
+
         if (ScreenshotMode != ScreenshotMode.Monitor)
         {
             return false;
@@ -345,9 +481,21 @@ public partial class MainWindow
         return !bounds.Contains(x, y);
     }
 
-    /// <summary>In single-monitor mode, true when the window receiving keystrokes is on another monitor.</summary>
+    /// <summary>
+    /// In single-monitor mode, true when the window receiving keystrokes is on another monitor;
+    /// in region mode, when that window doesn't overlap the region.
+    /// </summary>
     private bool IsForegroundOutsideCaptureMonitor()
     {
+        if (ScreenshotMode == ScreenshotMode.Region)
+        {
+            var region = _captureMonitorBounds ?? (GetSavedRegion() is { } saved ? ToRectangle(saved) : null);
+            var foregroundWindow = _activeWindowService.GetForegroundWindowHandle();
+            return region is { } area
+                && WindowEnumerator.GetVisibleBounds(foregroundWindow) is { } windowBounds
+                && !windowBounds.IntersectsWith(area);
+        }
+
         if (ScreenshotMode != ScreenshotMode.Monitor)
         {
             return false;
@@ -369,6 +517,11 @@ public partial class MainWindow
         var sideBySide = ScreenshotModeLabels.AreSideBySide(sorted.Select(m => (m.BoundsLeft, m.BoundsRight)).ToList());
         var monitor = sorted[position];
         return ScreenshotModeLabels.GetMonitorLabel(position, sorted.Count, sideBySide, monitor.Width, monitor.Height, monitor.IsPrimary);
+    }
+
+    private static System.Drawing.Rectangle ToRectangle(ScreenBounds bounds)
+    {
+        return new System.Drawing.Rectangle(bounds.X, bounds.Y, bounds.Width, bounds.Height);
     }
 
     private static System.Drawing.Rectangle MonitorBoundsFor(DisplayMonitorInfo monitor)

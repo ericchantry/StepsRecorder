@@ -4,6 +4,7 @@ using System.Drawing.Drawing2D;
 using System.Drawing.Imaging;
 using System.Runtime.InteropServices;
 using System.Runtime.InteropServices.WindowsRuntime;
+using OpenSteps.Core.Models;
 using OpenSteps.Core.Services;
 using Windows.Media.Core;
 using Windows.Media.MediaProperties;
@@ -15,7 +16,8 @@ namespace OpenSteps.Capture;
 public sealed record VideoRecordingResult(string Path, bool Succeeded, double DurationSeconds, int Width, int Height, string? Error);
 
 /// <summary>
-/// Records the screen (all monitors, one monitor, or the active window's monitor; see <see cref="VideoCaptureTarget"/>)
+/// Records the screen (all monitors, one monitor, the active window's monitor, one window or a drawn region;
+/// see <see cref="VideoCaptureTarget"/>)
 /// to an H.264 MP4 using only built-in Windows components:
 /// GDI screen frames are fed through a MediaStreamSource into MediaTranscoder.
 /// Frame timestamps come from the shared <see cref="RecordingClock"/>, so paused time is
@@ -24,7 +26,8 @@ public sealed record VideoRecordingResult(string Path, bool Succeeded, double Du
 public sealed class ScreenVideoRecorder : IAsyncDisposable
 {
     private const int MaxPooledBuffers = 6;
-    private static readonly TimeSpan ClickRingDuration = TimeSpan.FromMilliseconds(600);
+    private const int MaxVisibleClicks = 6;
+    private static readonly TimeSpan ClickRingDuration = TimeSpan.FromMilliseconds(700);
 
     private readonly RecordingClock _clock;
     private readonly VideoCaptureTarget _target;
@@ -43,7 +46,8 @@ public sealed class ScreenVideoRecorder : IAsyncDisposable
     private volatile bool _stopRequested;
     private TimeSpan _nextFrameTime;
     private TimeSpan _lastTimestamp = TimeSpan.FromTicks(-1);
-    private (int X, int Y, DateTimeOffset At)? _lastClick;
+    private readonly List<(int X, int Y, DateTimeOffset At, ClickMarkerKind Kind)> _clicks = [];
+    private (int X, int Y, DateTimeOffset At)? _lastLeftPress;
     private Exception? _frameError;
     private string _outputPath = string.Empty;
 
@@ -56,6 +60,15 @@ public sealed class ScreenVideoRecorder : IAsyncDisposable
     }
 
     public int FramesPerSecond { get; }
+
+    /// <summary>Draw a soft halo around the mouse pointer in every frame.</summary>
+    public bool HighlightCursor { get; init; } = true;
+
+    /// <summary>
+    /// Screen areas to cover in each frame (password and other sensitive fields), usually
+    /// <see cref="SecureFieldScanner.GetCurrentAreas"/>. Called once per frame, so it must be cheap.
+    /// </summary>
+    public Func<IReadOnlyList<ScreenBounds>>? SensitiveAreas { get; init; }
 
     public bool IsRecording => _transcodeTask is { IsCompleted: false };
 
@@ -115,9 +128,41 @@ public sealed class ScreenVideoRecorder : IAsyncDisposable
     /// <summary>Draws a short-lived ring at a click position so clicks are visible in the video.</summary>
     public void MarkClick(int x, int y)
     {
+        MarkClick(x, y, ClickMarkerKind.Left);
+    }
+
+    /// <summary>
+    /// Shows a click in the video as a ring in the colour of <paramref name="kind"/>. A second left press within the
+    /// Windows double-click time and distance is shown as a double-click.
+    /// </summary>
+    public void MarkClick(int x, int y, ClickMarkerKind kind)
+    {
+        var now = DateTimeOffset.UtcNow;
         lock (_clickSync)
         {
-            _lastClick = (x, y, DateTimeOffset.UtcNow);
+            if (kind == ClickMarkerKind.Left)
+            {
+                var size = System.Windows.Forms.SystemInformation.DoubleClickSize;
+                var isDouble = ClickMarkers.IsDoubleClick(
+                    _lastLeftPress,
+                    x,
+                    y,
+                    now,
+                    TimeSpan.FromMilliseconds(System.Windows.Forms.SystemInformation.DoubleClickTime),
+                    size.Width,
+                    size.Height);
+                _lastLeftPress = isDouble ? null : (x, y, now);
+                if (isDouble)
+                {
+                    kind = ClickMarkerKind.Double;
+                }
+            }
+
+            _clicks.Add((x, y, now, kind));
+            if (_clicks.Count > MaxVisibleClicks)
+            {
+                _clicks.RemoveAt(0);
+            }
         }
     }
 
@@ -295,7 +340,8 @@ public sealed class ScreenVideoRecorder : IAsyncDisposable
                 // The secure desktop (UAC prompt, lock screen) cannot be captured; keep the previous frame.
             }
 
-            DrawClickRing(graphics);
+            CoverSensitiveAreas(graphics);
+            DrawClickRings(graphics, capture.Size);
             DrawCursor(graphics);
         }
 
@@ -330,26 +376,39 @@ public sealed class ScreenVideoRecorder : IAsyncDisposable
         }
     }
 
-    private void DrawClickRing(Graphics graphics)
+    private void CoverSensitiveAreas(Graphics graphics)
     {
-        (int X, int Y, DateTimeOffset At)? click;
-        lock (_clickSync)
-        {
-            click = _lastClick;
-        }
-
-        if (click is not { } value || DateTimeOffset.UtcNow - value.At > ClickRingDuration)
+        if (SensitiveAreas is null)
         {
             return;
         }
 
-        var x = value.X - _sourceBounds.X;
-        var y = value.Y - _sourceBounds.Y;
-        graphics.SmoothingMode = SmoothingMode.AntiAlias;
-        using var fill = new SolidBrush(Color.FromArgb(70, 255, 196, 0));
-        using var pen = new Pen(Color.FromArgb(230, 255, 140, 0), 3);
-        graphics.FillEllipse(fill, x - 18, y - 18, 36, 36);
-        graphics.DrawEllipse(pen, x - 18, y - 18, 36, 36);
+        try
+        {
+            var source = new ScreenBounds(_sourceBounds.X, _sourceBounds.Y, _sourceBounds.Width, _sourceBounds.Height);
+            CaptureOverlayRenderer.CoverSensitiveAreas(graphics, CaptureRegionMath.ToLocal(SensitiveAreas(), source));
+        }
+        catch
+        {
+            // Covering is best effort per frame; the next frame tries again.
+        }
+    }
+
+    private void DrawClickRings(Graphics graphics, Size frameSize)
+    {
+        (int X, int Y, DateTimeOffset At, ClickMarkerKind Kind)[] clicks;
+        var now = DateTimeOffset.UtcNow;
+        lock (_clickSync)
+        {
+            _clicks.RemoveAll(click => now - click.At > ClickRingDuration);
+            clicks = _clicks.ToArray();
+        }
+
+        foreach (var click in clicks)
+        {
+            var progress = (now - click.At).TotalMilliseconds / ClickRingDuration.TotalMilliseconds;
+            CaptureOverlayRenderer.DrawVideoClick(graphics, click.X - _sourceBounds.X, click.Y - _sourceBounds.Y, click.Kind, progress, frameSize);
+        }
     }
 
     private void DrawCursor(Graphics graphics)
@@ -358,6 +417,11 @@ public sealed class ScreenVideoRecorder : IAsyncDisposable
         if (!NativeMethods.GetCursorInfo(ref info) || (info.Flags & NativeMethods.CURSOR_SHOWING) == 0 || info.Cursor == IntPtr.Zero)
         {
             return;
+        }
+
+        if (HighlightCursor)
+        {
+            CaptureOverlayRenderer.DrawCursorHalo(graphics, info.ScreenPosition.X - _sourceBounds.X, info.ScreenPosition.Y - _sourceBounds.Y);
         }
 
         var hotspotX = 0;

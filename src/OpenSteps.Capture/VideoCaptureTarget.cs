@@ -41,6 +41,12 @@ public sealed class VideoCaptureTarget
         return new VideoCaptureTarget(bounds.Size, () => bounds, description);
     }
 
+    /// <summary>A fixed screen rectangle the user drew (physical pixels).</summary>
+    public static VideoCaptureTarget Region(Rectangle bounds, string description)
+    {
+        return new VideoCaptureTarget(bounds.Size, () => bounds, description);
+    }
+
     /// <summary>
     /// Records one window's area on screen, following it as it moves or resizes. While the window is minimized
     /// or closed the source is <see cref="Rectangle.Empty"/>, which makes the recorder hold the last frame.
