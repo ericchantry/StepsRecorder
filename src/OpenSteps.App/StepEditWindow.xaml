@@ -34,7 +34,7 @@
                             ToolTip="Drag to draw a box around something" />
                     <Button x:Name="ArrowToolButton" Content="Arrow" Tag="Arrow" Click="Tool_Click" Style="{StaticResource ToolButton}"
                             ToolTip="Drag from the tail to the point of the arrow" />
-                    <Button x:Name="CalloutToolButton" Content="① Callout" Tag="Callout" Click="Tool_Click" Style="{StaticResource ToolButton}"
+                    <Button x:Name="CalloutToolButton" Content="Callout" Tag="Callout" Click="Tool_Click" Style="{StaticResource ToolButton}"
                             ToolTip="Click to place a numbered callout. Numbers go up by one each time and close up when one is removed." />
                     <Button x:Name="HighlightToolButton" Content="Highlight" Tag="Highlight" Click="Tool_Click" Style="{StaticResource ToolButton}"
                             ToolTip="Drag to shade an area in yellow" />
