@@ -204,6 +204,41 @@ public sealed class ScreenshotRedactionServiceTests
         Assert.True(HasRedPixel(after));
     }
 
+    [Fact]
+    public void ApplyEdits_CropsAfterDrawingAndLeavesOriginalUntouched()
+    {
+        var temp = CreateTempDirectory();
+        var original = Path.Combine(temp, "original.png");
+        var output = Path.Combine(temp, "edited.png");
+        CreateSolidImage(original, Color.White, 100, 80);
+        var before = File.ReadAllBytes(original);
+
+        new ScreenshotRedactionService().ApplyEdits(
+            original,
+            output,
+            [new RedactionRegion(0, 0, 10, 10, RedactionMode.BlackBox)],
+            [new ScreenshotAnnotation { Type = ScreenshotAnnotationType.Rectangle, X1 = 20, Y1 = 20, X2 = 60, Y2 = 60, StrokeThickness = 4 }],
+            new ScreenBounds(10, 10, 60, 50));
+
+        Assert.Equal(before, File.ReadAllBytes(original));
+        using var edited = new Bitmap(output);
+        Assert.Equal(new Size(60, 50), edited.Size);
+        Assert.True(HasRedPixel(edited));
+
+        // The black box was outside the crop, so nothing of it is left.
+        Assert.NotEqual(Color.Black.ToArgb(), edited.GetPixel(0, 0).ToArgb());
+    }
+
+    [Fact]
+    public void ApplyEdits_RefusesToOverwriteTheOriginal()
+    {
+        var temp = CreateTempDirectory();
+        var original = Path.Combine(temp, "original.png");
+        CreateSolidImage(original, Color.White);
+
+        Assert.Throws<ArgumentException>(() => new ScreenshotRedactionService().ApplyEdits(original, original, [], [], null));
+    }
+
     private static string CreateTempDirectory()
     {
         var path = Path.Combine(Path.GetTempPath(), "OpenSteps.Tests", Guid.NewGuid().ToString("N"));

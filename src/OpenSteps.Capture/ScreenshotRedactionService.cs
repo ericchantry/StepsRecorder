@@ -19,6 +19,21 @@ public sealed class ScreenshotRedactionService
         IReadOnlyList<RedactionRegion> regions,
         IReadOnlyList<ScreenshotAnnotation> annotations)
     {
+        ApplyEdits(originalImagePath, outputImagePath, regions, annotations, crop: null);
+    }
+
+    /// <summary>
+    /// Draws <paramref name="regions"/> and <paramref name="annotations"/> (original-image pixels) onto a copy of the
+    /// original, then crops it to <paramref name="crop"/> when given, and saves the result to
+    /// <paramref name="outputImagePath"/>. The original file is only read, never written.
+    /// </summary>
+    public void ApplyEdits(
+        string originalImagePath,
+        string outputImagePath,
+        IReadOnlyList<RedactionRegion> regions,
+        IReadOnlyList<ScreenshotAnnotation> annotations,
+        ScreenBounds? crop)
+    {
         if (string.IsNullOrWhiteSpace(originalImagePath))
         {
             throw new ArgumentException("Original image path is required.", nameof(originalImagePath));
@@ -27,6 +42,11 @@ public sealed class ScreenshotRedactionService
         if (string.IsNullOrWhiteSpace(outputImagePath))
         {
             throw new ArgumentException("Output image path is required.", nameof(outputImagePath));
+        }
+
+        if (string.Equals(Path.GetFullPath(originalImagePath), Path.GetFullPath(outputImagePath), StringComparison.OrdinalIgnoreCase))
+        {
+            throw new ArgumentException("Edits must be saved to a new file so the original capture is kept.", nameof(outputImagePath));
         }
 
         if (!File.Exists(originalImagePath))
@@ -69,6 +89,17 @@ public sealed class ScreenshotRedactionService
             foreach (var annotation in annotations)
             {
                 DrawAnnotation(graphics, source.Width, source.Height, annotation);
+            }
+        }
+
+        if (crop is { Width: > 0, Height: > 0 } area)
+        {
+            var bounds = Rectangle.Intersect(new Rectangle(area.X, area.Y, area.Width, area.Height), new Rectangle(0, 0, redacted.Width, redacted.Height));
+            if (bounds.Width > 0 && bounds.Height > 0 && bounds.Size != redacted.Size)
+            {
+                using var cropped = redacted.Clone(bounds, redacted.PixelFormat);
+                cropped.Save(outputImagePath, ImageFormat.Png);
+                return;
             }
         }
 

@@ -234,7 +234,7 @@
 
                                             <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
                                                 <Button Content="&#xE70F;"
-                                                        ToolTip="Edit screenshot"
+                                                        ToolTip="Edit step: crop the screenshot, add numbered callouts, boxes and arrows, and change the title and description. The original capture is kept."
                                                         Click="EditScreenshot_Click"
                                                         Style="{StaticResource IconButton}" />
                                                 <Button Content="&#xE722;"
@@ -301,8 +301,9 @@
                                                     <Image Source="{Binding EffectiveScreenshotPath, Converter={StaticResource FileImageConverter}}"
                                                            Stretch="Uniform" />
 
-                                                    <!--  Redacted badge  -->
+                                                    <!--  Edited badge  -->
                                                     <Border HorizontalAlignment="Left"
+                                                            ToolTip="Shown with your edits. The original capture is kept; open the step editor and choose Reset to original to go back to it."
                                                             VerticalAlignment="Top"
                                                             Margin="10"
                                                             Background="{StaticResource AccentBrush}"
@@ -312,7 +313,7 @@
                                                             <Style TargetType="Border">
                                                                 <Setter Property="Visibility" Value="Collapsed" />
                                                                 <Style.Triggers>
-                                                                    <DataTrigger Binding="{Binding HasRedactions}" Value="True">
+                                                                    <DataTrigger Binding="{Binding HasScreenshotEdits}" Value="True">
                                                                         <Setter Property="Visibility" Value="Visible" />
                                                                     </DataTrigger>
                                                                 </Style.Triggers>
@@ -325,7 +326,7 @@
                                                                        Foreground="White"
                                                                        VerticalAlignment="Center"
                                                                        Margin="0,0,5,0" />
-                                                            <TextBlock Text="Redacted"
+                                                            <TextBlock Text="Edited"
                                                                        FontSize="10.5"
                                                                        FontWeight="SemiBold"
                                                                        Foreground="White"
