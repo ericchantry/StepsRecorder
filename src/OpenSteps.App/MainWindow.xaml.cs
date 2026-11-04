@@ -1013,19 +1013,39 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         preview.ShowDialog();
     }
 
-    internal async Task EditScreenshotFromEditorAsync(object sender)
+    internal Task EditScreenshotFromEditorAsync(object sender)
     {
-        if ((sender as FrameworkElement)?.DataContext is not RecordedStep step
-            || string.IsNullOrWhiteSpace(step.ScreenshotPath)
-            || !File.Exists(step.ScreenshotPath))
+        return (sender as FrameworkElement)?.DataContext is RecordedStep step
+            ? EditStepAsync(step, StepEditTool.Box)
+            : Task.CompletedTask;
+    }
+
+    /// <summary>
+    /// Opens the step editor: title, description and screenshot edits (crop, boxes, arrows, callouts, highlight, blur).
+    /// The edits are stored on the step and drawn onto a new image from the untouched original capture.
+    /// </summary>
+    private async Task EditStepAsync(RecordedStep step, StepEditTool initialTool)
+    {
+        if (string.IsNullOrWhiteSpace(step.ScreenshotPath) || !File.Exists(step.ScreenshotPath))
         {
-            WinForms.MessageBox.Show("No original screenshot is available for this step.", "OpenSteps", WinForms.MessageBoxButtons.OK, WinForms.MessageBoxIcon.Information);
+            WinForms.MessageBox.Show("This step has no screenshot to edit. Capture, import or paste one first; you can edit the title and description directly in the list.", "OpenSteps", WinForms.MessageBoxButtons.OK, WinForms.MessageBoxIcon.Information);
             return;
         }
 
         try
         {
-            var editor = new ScreenshotRedactionWindow(step.EffectiveScreenshotPath ?? step.ScreenshotPath, step.Redactions)
+            var legacy = step.ScreenshotEditFormat == 0 && !string.IsNullOrWhiteSpace(step.EditedScreenshotPath) && File.Exists(step.EditedScreenshotPath);
+            var editor = new StepEditWindow(new StepEditRequest(
+                step.Index,
+                step.ScreenshotPath,
+                step.Redactions,
+                step.Annotations,
+                step.ScreenshotCrop,
+                step.DisplayTitle,
+                step.UserDescription,
+                _titleGenerator.Generate(step),
+                legacy,
+                initialTool))
             {
                 Owner = _editorWindow,
                 WindowStartupLocation = WindowStartupLocation.CenterOwner
@@ -1036,28 +1056,13 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                 return;
             }
 
-            if (editor.CropRequested)
-            {
-                await CropScreenshotForStepAsync(step);
-                return;
-            }
+            step.UserTitle = editor.StepTitle;
+            step.UserDescription = string.IsNullOrWhiteSpace(editor.StepDescription) ? null : editor.StepDescription;
 
-            var outputPath = GetEditedScreenshotPath(step);
-            step.Redactions = [.. editor.Redactions];
-            if (step.Redactions.Count == 0 && editor.Annotations.Count == 0)
+            // An older edit keeps its baked-in image until the screenshot itself is changed here.
+            if (!legacy || editor.ScreenshotChanged)
             {
-                if (editor.HasChanges || string.IsNullOrWhiteSpace(step.EditedScreenshotPath))
-                {
-                    step.EditedScreenshotPath = null;
-                    step.EditedScreenshotRelativePath = null;
-                }
-            }
-            else
-            {
-                var sourcePath = step.EffectiveScreenshotPath ?? step.ScreenshotPath;
-                _redactionService.ApplyEdits(sourcePath, outputPath, step.Redactions, editor.Annotations);
-                step.EditedScreenshotPath = outputPath;
-                step.EditedScreenshotRelativePath = Path.Combine("images", Path.GetFileName(outputPath)).Replace('\\', '/');
+                RenderStepScreenshot(step, editor.Redactions, editor.Annotations, editor.Crop);
             }
 
             RefreshStepViews();
@@ -1065,7 +1070,55 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         }
         catch (Exception ex)
         {
-            WinForms.MessageBox.Show($"Screenshot could not be edited:\n{ex.Message}", "OpenSteps", WinForms.MessageBoxButtons.OK, WinForms.MessageBoxIcon.Error);
+            WinForms.MessageBox.Show($"The step could not be edited:\n{ex.Message}", "OpenSteps", WinForms.MessageBoxButtons.OK, WinForms.MessageBoxIcon.Error);
+        }
+    }
+
+    /// <summary>Stores the edits and redraws the edited image from the original capture (which is never written).</summary>
+    private void RenderStepScreenshot(RecordedStep step, IReadOnlyList<RedactionRegion> redactions, IReadOnlyList<ScreenshotAnnotation> annotations, ScreenBounds? crop)
+    {
+        var previous = step.EditedScreenshotPath;
+        step.Redactions = [.. redactions];
+        step.Annotations = [.. annotations];
+        step.ScreenshotCrop = crop;
+        step.ScreenshotEditFormat = 1;
+
+        if (!step.HasScreenshotEdits)
+        {
+            step.EditedScreenshotPath = null;
+            step.EditedScreenshotRelativePath = null;
+        }
+        else
+        {
+            var outputPath = GetEditedScreenshotPath(step);
+            _redactionService.ApplyEdits(step.ScreenshotPath!, outputPath, step.Redactions, step.Annotations, step.ScreenshotCrop);
+            step.EditedScreenshotPath = outputPath;
+            step.EditedScreenshotRelativePath = Path.Combine("images", Path.GetFileName(outputPath)).Replace('\\', '/');
+        }
+
+        DeleteReplacedEditedImage(step, previous);
+    }
+
+    /// <summary>Removes the previous edited image once a new one replaces it. The original capture is never removed.</summary>
+    private static void DeleteReplacedEditedImage(RecordedStep step, string? previous)
+    {
+        if (string.IsNullOrWhiteSpace(previous)
+            || string.Equals(previous, step.EditedScreenshotPath, StringComparison.OrdinalIgnoreCase)
+            || string.Equals(previous, step.ScreenshotPath, StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        try
+        {
+            if (File.Exists(previous))
+            {
+                File.Delete(previous);
+            }
+        }
+        catch
+        {
+            // A leftover image is harmless.
         }
     }
 
@@ -1081,9 +1134,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
         step.ScreenshotPath = outputPath;
         step.ScreenshotRelativePath = Path.Combine("images", Path.GetFileName(outputPath)).Replace('\\', '/');
-        step.EditedScreenshotPath = null;
-        step.EditedScreenshotRelativePath = null;
-        step.Redactions.Clear();
+        step.ClearScreenshotEdits();
         step.ScreenshotCaptured = true;
         step.ScreenshotWidth = source.PixelWidth;
         step.ScreenshotHeight = source.PixelHeight;
@@ -1091,63 +1142,6 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
         RefreshStepViews();
         await SaveSessionAsync(showMessage: false);
-    }
-
-    private async Task CropScreenshotForStepAsync(RecordedStep step)
-    {
-        if (string.IsNullOrWhiteSpace(step.EffectiveScreenshotPath)
-            || !File.Exists(step.EffectiveScreenshotPath))
-        {
-            WinForms.MessageBox.Show("No screenshot is available to crop for this step.", "OpenSteps", WinForms.MessageBoxButtons.OK, WinForms.MessageBoxIcon.Information);
-            return;
-        }
-
-        try
-        {
-            var cropWindow = new CropWindow(step.EffectiveScreenshotPath)
-            {
-                Owner = _editorWindow,
-                WindowStartupLocation = WindowStartupLocation.CenterOwner
-            };
-
-            if (cropWindow.ShowDialog() != true)
-            {
-                return;
-            }
-
-            var source = LoadBitmapFrame(step.EffectiveScreenshotPath);
-            var cropRect = cropWindow.CropRect;
-            if (cropRect.Width <= 0 || cropRect.Height <= 0)
-            {
-                WinForms.MessageBox.Show("The selected crop area was empty.", "OpenSteps", WinForms.MessageBoxButtons.OK, WinForms.MessageBoxIcon.Information);
-                return;
-            }
-
-            var cropped = new CroppedBitmap(source, cropRect);
-            var outputPath = GetCroppedScreenshotPath(step);
-            using (var stream = File.Create(outputPath))
-            {
-                var encoder = new PngBitmapEncoder();
-                encoder.Frames.Add(BitmapFrame.Create(cropped));
-                encoder.Save(stream);
-            }
-
-            step.ScreenshotPath = outputPath;
-            step.ScreenshotRelativePath = Path.Combine("images", Path.GetFileName(outputPath)).Replace('\\', '/');
-            step.EditedScreenshotPath = null;
-            step.EditedScreenshotRelativePath = null;
-            step.Redactions.Clear();
-            step.ScreenshotCaptured = true;
-            step.ScreenshotWidth = cropped.PixelWidth;
-            step.ScreenshotHeight = cropped.PixelHeight;
-
-            RefreshStepViews();
-            await SaveSessionAsync(showMessage: false);
-        }
-        catch (Exception ex)
-        {
-            WinForms.MessageBox.Show($"Screenshot could not be cropped:\n{ex.Message}", "OpenSteps", WinForms.MessageBoxButtons.OK, WinForms.MessageBoxIcon.Error);
-        }
     }
 
     private async Task CaptureScreenshotForExistingStepAsync(RecordedStep step, int x, int y, CaptureTargetResolution resolution)
@@ -1797,9 +1791,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     {
         step.ScreenshotPath = screenshot.FilePath;
         step.ScreenshotRelativePath = null;
-        step.EditedScreenshotPath = null;
-        step.EditedScreenshotRelativePath = null;
-        step.Redactions.Clear();
+        step.ClearScreenshotEdits();
         step.ScreenshotCaptureMode = screenshot.CaptureMode;
         step.RequestedScreenshotMode = screenshot.RequestedScreenshotMode;
         step.ActualScreenshotMode = screenshot.ActualScreenshotMode;
@@ -1846,13 +1838,6 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         var imagesDirectory = GetSessionImagesDirectory();
         var stepId = step.Id.ToString("N")[..8];
         return Path.Combine(imagesDirectory, $"{prefix}-{stepId}-{DateTimeOffset.Now:yyyyMMdd-HHmmssfff}.png");
-    }
-
-    private string GetCroppedScreenshotPath(RecordedStep step)
-    {
-        var imagesDirectory = GetSessionImagesDirectory();
-        var baseName = $"step-{step.Index:000}";
-        return Path.Combine(imagesDirectory, $"{baseName}-crop-{DateTimeOffset.Now:yyyyMMdd-HHmmssfff}.png");
     }
 
     private static BitmapFrame LoadBitmapFrame(string path)

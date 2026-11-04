@@ -27,6 +27,14 @@ Everything stays on your computer. No account, no cloud, no telemetry, and no ad
 - **Bug reports and QA** – exact steps to reproduce an issue, with the video and every keystroke to prove it.
 - **Support** – customer and internal walkthroughs.
 
+## What's new in 0.4
+
+Full release history: [CHANGELOG.md](CHANGELOG.md).
+
+- **A step editor.** Click the pencil on any step to crop its screenshot, add numbered callouts, boxes, arrows, highlights and blur, and edit its title and description, all in one window. Callouts number themselves and close up when one is removed. Right-click an edit to remove it; undo and redo work throughout.
+- **Your original capture is never changed.** Edits are saved as a list and drawn onto a copy, so you can open a step again later and move on from where you left off, remove a single arrow, change the crop, or choose **Reset to original**.
+- **Shorter, plainer step titles.** `Click "Save"` instead of `Click the 'Save' button`, `Type "invoice 1042" in "Search"`, `Open the "Home" tab`, `Select "Documents"`, `Press Ctrl+S to save`, and `Click in Excel` instead of the whole window title. Labels lose shortcut hints and trailing "…", and long ones are shortened. The step editor offers the suggested title if you've changed it and want it back.
+
 ## What's new in 0.3
 
 - **Record a screen region.** Choose **Select a region…** in the Capture list and drag a rectangle over the part of the screen you want. Screenshots and video show only that area; a dashed outline (which doesn't appear in the recording) marks it while you record.
@@ -81,7 +89,14 @@ OpenSteps is not code-signed yet. SmartScreen may warn on first launch, and secu
 
    The tray icon has the same controls, plus **Record typed text** so you can switch it off before typing something private.
 3. **Do the task.** Each click, double-click, right-click, Enter/Tab/Escape, function key and shortcut becomes a step with a screenshot. Typing is grouped into one step per field.
-4. **Edit the guide.** Rename it, edit step titles and descriptions, reorder, delete or insert steps, and edit screenshots (crop, redact, annotate with boxes, arrows, highlights and numbered markers, or replace by importing or pasting). Click **Video & timeline** to review the recording.
+4. **Edit the guide.** Rename it, edit step titles and descriptions, reorder, delete or insert steps, and replace screenshots by capturing, importing or pasting. Click the pencil on a step to open the step editor:
+   - **Crop** – drag over the part to keep. The rest is dimmed, not deleted; **Remove crop** brings it back.
+   - **Callout** – click to drop a numbered circle (1, 2, 3…). Removing one renumbers the rest.
+   - **Box**, **Arrow**, **Highlight**, **Blur**, **Circle** – drag to draw.
+   - Right-click any edit to remove it, Ctrl+Z / Ctrl+Y to undo and redo, **Reset to original** to start again.
+   - Edit the title and description beside the screenshot, or click **Suggested** to use OpenSteps' title.
+
+   Edits are kept separately from the original capture, so steps can be re-edited at any time. Click **Video & timeline** to review the recording.
 5. **Export** as Markdown and/or HTML, optionally with the video, the input timeline, system details and a .zip.
 
 ## Export
@@ -139,7 +154,7 @@ Build the release package (self-contained zip with the install scripts, plus its
 .\build\Publish-OpenSteps.ps1
 ```
 
-Pushing a version tag (for example `v0.3.0`) runs the GitHub Actions release workflow, which builds, tests and publishes the zip to Releases.
+Pushing a version tag (for example `v0.4.0`) runs the GitHub Actions release workflow, which builds, tests and publishes the zip to Releases.
 
 Project layout:
 

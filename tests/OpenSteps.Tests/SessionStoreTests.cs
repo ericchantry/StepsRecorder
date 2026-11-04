@@ -44,6 +44,39 @@ public sealed class SessionStoreTests
     }
 
     [Fact]
+    public async Task SaveAndLoadSessionAsync_PreservesScreenshotEditsForLaterChanges()
+    {
+        var root = CreateRoot();
+        var image = await CreateSourceFileAsync(root, "capture.png", [4, 5, 6]);
+        var session = new RecordingSession { Title = "Edits" };
+        session.Steps.Add(new RecordedStep
+        {
+            Index = 1,
+            ScreenshotPath = image,
+            ScreenshotCaptured = true,
+            ScreenshotEditFormat = 1,
+            ScreenshotCrop = new ScreenBounds(5, 6, 300, 200),
+            Annotations =
+            [
+                new ScreenshotAnnotation { Type = ScreenshotAnnotationType.Marker, X1 = 40, Y1 = 50, X2 = 14, Text = "1" },
+                new ScreenshotAnnotation { Type = ScreenshotAnnotationType.Arrow, X1 = 1, Y1 = 2, X2 = 30, Y2 = 40 }
+            ]
+        });
+
+        var store = new SessionStore(root);
+        await store.SaveSessionAsync(session);
+        var loaded = await store.LoadSessionAsync(session.Id);
+
+        var step = Assert.Single(loaded!.Steps);
+        Assert.Equal(1, step.ScreenshotEditFormat);
+        Assert.Equal(new ScreenBounds(5, 6, 300, 200), step.ScreenshotCrop);
+        Assert.Equal(2, step.Annotations.Count);
+        Assert.Equal(ScreenshotAnnotationType.Marker, step.Annotations[0].Type);
+        Assert.Equal("1", step.Annotations[0].Text);
+        Assert.Equal(30, step.Annotations[1].X2);
+    }
+
+    [Fact]
     public async Task SaveSessionAsync_WritesRelativePathsInJson()
     {
         var root = CreateRoot();

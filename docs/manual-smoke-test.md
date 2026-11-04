@@ -162,3 +162,22 @@ Use this checklist before demoing OpenSteps.
 4. Move the window while the password box is focused; confirm the cover moves with it.
 5. Confirm ordinary fields (e.g. *Search*, *Name*) are not covered.
 
+## Step Editor
+
+1. Record a few steps and stop. Click the pencil on a step; confirm the **Edit step N** window shows the screenshot, the title and description, and a **Suggested** button when the title differs from OpenSteps' suggestion.
+2. Draw a box, an arrow, a highlight and a blur, and place three callouts. Confirm the callouts read 1, 2, 3 and the hint shows the next number.
+3. Right-click callout 2; confirm it disappears and the remaining callouts read 1, 2. Right-click the blur; confirm it is removed.
+4. Crop to part of the screenshot. Confirm the outside is dimmed, not removed, and **Remove crop** brings the whole image back. Crop again.
+5. Press Ctrl+Z a few times and Ctrl+Y; confirm each edit comes and goes. Change the title and description and click **Save**.
+6. Confirm the step list shows the cropped, annotated screenshot with an **Edited** badge and the new title and description. Export to HTML and confirm the export uses the edited image.
+7. Open the editor again; confirm every edit and the crop are still there and can be changed one by one, and that the full original is shown underneath.
+8. Click **Reset to original** and **Save**; confirm the step shows the original capture again and the badge is gone. Check the session's `images` folder: the original `step-NNN.png` is unchanged throughout.
+9. Make a change and close the window with the X; confirm OpenSteps asks whether to save. Cancel keeps the window open; No discards.
+10. Open a session edited with an earlier version that has boxes or arrows; confirm a notice explains they can't be changed one by one, saving only text keeps the old image, and changing the screenshot starts from the original.
+
+## Step Titles
+
+1. Record: clicking a button, a menu bar item and an item in its menu, a tab, a list item, a checkbox, a text field, typing into a search box, a password box, Ctrl+C, Ctrl+Shift+P and Alt+Tab, and a click on an empty area of Excel or Notepad.
+2. Confirm titles read like `Click "Save"`, `Open the "File" menu`, `Choose "Save As"`, `Open the "Home" tab`, `Select "Documents"`, `Click the "Remember me" checkbox`, `Click in "Search"`, `Type "invoice 1042" in "Search"`, `Enter the password`, `Press Ctrl+C to copy`, `Press Ctrl+Shift+P`, `Press Alt+Tab to switch windows`, and `Click in Excel`.
+3. Confirm long element names are shortened with "…" and no title contains a keyboard-shortcut hint such as "(Ctrl+S)".
+

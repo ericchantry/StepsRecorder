@@ -260,7 +260,7 @@ public sealed class TimeFormatAndPolicyTests
         var generator = new StepTitleGenerator();
         var step = new RecordedStep { ActionType = StepActionType.TextEntry, TypedText = "invoice 1042", InputTargetName = "Search" };
 
-        Assert.Equal("Type 'invoice 1042' into the 'Search' field", generator.Generate(step));
+        Assert.Equal("Type \"invoice 1042\" in \"Search\"", generator.Generate(step));
     }
 
     [Fact]

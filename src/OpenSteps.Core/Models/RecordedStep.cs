@@ -28,9 +28,40 @@ public sealed class RecordedStep
     [JsonIgnore]
     public string? EditedScreenshotPath { get; set; }
 
+    /// <summary>Blur and circle edits, in the original screenshot's pixels.</summary>
     public List<RedactionRegion> Redactions { get; set; } = [];
 
+    /// <summary>Boxes, arrows, highlights and numbered callouts, in the original screenshot's pixels.</summary>
+    public List<ScreenshotAnnotation> Annotations { get; set; } = [];
+
+    /// <summary>Part of the original screenshot to show, in its pixels; null shows all of it.</summary>
+    public ScreenBounds? ScreenshotCrop { get; set; }
+
+    /// <summary>
+    /// 1 when the edits above are stored and the edited image is drawn from the untouched original.
+    /// 0 for sessions edited by older versions, whose boxes and arrows exist only in the edited image.
+    /// </summary>
+    public int ScreenshotEditFormat { get; set; }
+
     public bool HasRedactions => Redactions.Count > 0;
+
+    /// <summary>True when the screenshot is shown with any edits (blur, annotations or crop).</summary>
+    [JsonIgnore]
+    public bool HasScreenshotEdits => Redactions.Count > 0
+        || Annotations.Count > 0
+        || ScreenshotCrop is not null
+        || (ScreenshotEditFormat == 0 && !string.IsNullOrWhiteSpace(EditedScreenshotPath));
+
+    /// <summary>Drops all screenshot edits, e.g. when the screenshot itself is replaced.</summary>
+    public void ClearScreenshotEdits()
+    {
+        Redactions.Clear();
+        Annotations.Clear();
+        ScreenshotCrop = null;
+        EditedScreenshotPath = null;
+        EditedScreenshotRelativePath = null;
+        ScreenshotEditFormat = 1;
+    }
 
     [JsonIgnore]
     public string? EffectiveScreenshotPath
