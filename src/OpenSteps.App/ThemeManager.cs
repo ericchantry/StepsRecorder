@@ -4,6 +4,7 @@ using System.Windows.Interop;
 using Microsoft.Win32;
 using OpenSteps.Core.Models;
 using OpenSteps.Core.Services;
+using Application = System.Windows.Application;
 
 namespace OpenSteps.App;
 
