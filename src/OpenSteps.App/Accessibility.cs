@@ -1,9 +1,30 @@
+using System.Globalization;
 using System.Windows;
 using System.Windows.Automation;
+using System.Windows.Data;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 
 namespace OpenSteps.App;
+
+/// <summary>
+/// Supplies the screen-reader name for a control, from <see cref="Accessibility.GetNameFromToolTip"/>.
+/// Applied by the control styles in App.xaml, so it reaches every button and field in the app.
+/// </summary>
+public sealed class AccessibleNameConverter : IValueConverter
+{
+    public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
+    {
+        var content = (value as System.Windows.Controls.ContentControl)?.Content;
+        var toolTip = (value as FrameworkElement)?.ToolTip;
+        return Accessibility.GetNameFromToolTip(content, toolTip) ?? (object)DependencyProperty.UnsetValue;
+    }
+
+    public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
+    {
+        throw new NotSupportedException();
+    }
+}
 
 /// <summary>
 /// Gives every control a name for screen readers. Many buttons show only an icon, which a screen reader would
