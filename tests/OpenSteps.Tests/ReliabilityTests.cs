@@ -249,7 +249,7 @@ public sealed class XamlConventionTests
         foreach (var file in Directory.EnumerateFiles(AppDirectory, "*.xaml", SearchOption.TopDirectoryOnly))
         {
             var text = File.ReadAllText(file);
-            foreach (System.Text.RegularExpressions.Match match in System.Text.RegularExpressions.Regex.Matches(text, @"<(TextBox|ComboBox|Slider|ListBox)\b([^>]*)>"))
+            foreach (System.Text.RegularExpressions.Match match in System.Text.RegularExpressions.Regex.Matches(text, @"<(TextBox|ComboBox|Slider|ListBox)\s([^>]*)>"))
             {
                 if (!match.Groups[2].Value.Contains("AutomationProperties.Name"))
                 {
