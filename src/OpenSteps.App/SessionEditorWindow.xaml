@@ -4,33 +4,18 @@
         xmlns:local="clr-namespace:OpenSteps.App"
         Title="OpenSteps" Width="1160" Height="780" MinWidth="940" MinHeight="620"
         WindowStartupLocation="CenterScreen"
-        Background="{StaticResource AppBackgroundBrush}">
+        Background="{DynamicResource AppBackgroundBrush}">
     <Window.Resources>
         <local:FileImageConverter x:Key="FileImageConverter" />
 
-        <!--  Small "chip" used for action-type pills.  -->
-        <Style x:Key="Chip" TargetType="Border">
-            <Setter Property="Background" Value="{StaticResource SoftSurfaceBrush}" />
-            <Setter Property="BorderBrush" Value="{StaticResource BorderSoftBrush}" />
-            <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="CornerRadius" Value="999" />
-            <Setter Property="Padding" Value="9,2" />
-            <Setter Property="VerticalAlignment" Value="Center" />
-        </Style>
-
-        <Style x:Key="ChipText" TargetType="TextBlock">
-            <Setter Property="FontSize" Value="11" />
-            <Setter Property="FontWeight" Value="SemiBold" />
-            <Setter Property="Foreground" Value="{StaticResource TextSecondaryBrush}" />
-        </Style>
     </Window.Resources>
 
     <DockPanel>
 
         <!--  ─────────── Header bar ─────────────────────────────────── -->
         <Border DockPanel.Dock="Top"
-                Background="{StaticResource PanelBackgroundBrush}"
-                BorderBrush="{StaticResource BorderSoftBrush}"
+                Background="{DynamicResource PanelBackgroundBrush}"
+                BorderBrush="{DynamicResource BorderSoftBrush}"
                 BorderThickness="0,0,0,1"
                 Padding="24,16">
             <Grid>
@@ -52,12 +37,12 @@
                     <TextBlock Text="GUIDE TITLE"
                                Style="{StaticResource CaptionText}"
                                Margin="2,0,0,2" />
-                    <TextBox x:Name="SessionTitleBox"
+                    <TextBox AutomationProperties.Name="Guide title" x:Name="SessionTitleBox"
                              FontSize="20"
                              FontWeight="SemiBold"
                              BorderThickness="0"
                              Background="Transparent"
-                             Foreground="{StaticResource TextPrimaryBrush}"
+                             Foreground="{DynamicResource TextPrimaryBrush}"
                              Padding="2,0"
                              MinHeight="30"
                              ToolTip="Guide title"
@@ -86,7 +71,7 @@
                             Style="{StaticResource IconButton}"
                             Width="36" Height="36"
                             Margin="6,0,0,0" />
-                    <Button Click="ReviewRecording_Click"
+                    <Button AutomationProperties.Name="Video and timeline" Click="ReviewRecording_Click"
                             Margin="14,0,0,0"
                             Padding="14,0"
                             Height="36"
@@ -100,7 +85,7 @@
                             <TextBlock Text="Video &amp; timeline" VerticalAlignment="Center" />
                         </StackPanel>
                     </Button>
-                    <Button Click="ExportMarkdown_Click"
+                    <Button AutomationProperties.Name="Export guide" Click="ExportMarkdown_Click"
                             Margin="14,0,0,0"
                             Padding="16,0"
                             Height="36"
@@ -128,13 +113,13 @@
                             Margin="0,140,0,0"
                             Visibility="Collapsed">
                     <Border Width="56" Height="56"
-                            Background="{StaticResource SoftSurfaceBrush}"
+                            Background="{DynamicResource SoftSurfaceBrush}"
                             CornerRadius="14"
                             HorizontalAlignment="Center">
                         <TextBlock Text="&#xE9F9;"
                                    FontFamily="Segoe MDL2 Assets"
                                    FontSize="22"
-                                   Foreground="{StaticResource TextMutedBrush}"
+                                   Foreground="{DynamicResource TextMutedBrush}"
                                    HorizontalAlignment="Center"
                                    VerticalAlignment="Center" />
                     </Border>
@@ -147,7 +132,7 @@
                                HorizontalAlignment="Center" />
                 </StackPanel>
 
-                <ItemsControl x:Name="StepsList"
+                <ItemsControl AutomationProperties.Name="Steps" x:Name="StepsList"
                               ItemsSource="{Binding Steps}"
                               Padding="28,24,28,32">
                     <ItemsControl.ItemTemplate>
@@ -161,13 +146,13 @@
                                 <!--  Step rail with number badge and connecting line  -->
                                 <Grid Grid.Column="0">
                                     <Rectangle Width="2"
-                                               Fill="{StaticResource BorderSoftBrush}"
+                                               Fill="{DynamicResource BorderSoftBrush}"
                                                HorizontalAlignment="Center"
                                                VerticalAlignment="Stretch"
                                                Margin="0,8,0,0" />
                                     <Border Width="34" Height="34"
-                                            Background="{StaticResource PanelBackgroundBrush}"
-                                            BorderBrush="{StaticResource BorderBrush}"
+                                            Background="{DynamicResource PanelBackgroundBrush}"
+                                            BorderBrush="{DynamicResource BorderBrush}"
                                             BorderThickness="1"
                                             CornerRadius="999"
                                             HorizontalAlignment="Center"
@@ -176,7 +161,7 @@
                                         <TextBlock Text="{Binding Index}"
                                                    FontWeight="SemiBold"
                                                    FontSize="13"
-                                                   Foreground="{StaticResource TextPrimaryBrush}"
+                                                   Foreground="{DynamicResource TextPrimaryBrush}"
                                                    HorizontalAlignment="Center"
                                                    VerticalAlignment="Center" />
                                     </Border>
@@ -184,8 +169,8 @@
 
                                 <!--  Step card  -->
                                 <Border Grid.Column="1"
-                                        Background="{StaticResource PanelBackgroundBrush}"
-                                        BorderBrush="{StaticResource BorderSoftBrush}"
+                                        Background="{DynamicResource PanelBackgroundBrush}"
+                                        BorderBrush="{DynamicResource BorderSoftBrush}"
                                         BorderThickness="1"
                                         CornerRadius="12">
                                     <Border.Effect>
@@ -217,11 +202,11 @@
                                                     <TextBlock Text="{Binding ActionType}" Style="{StaticResource ChipText}" />
                                                 </Border>
                                                 <TextBlock Text="{Binding Index, StringFormat=Step {0}}"
-                                                           Foreground="{StaticResource TextMutedBrush}"
+                                                           Foreground="{DynamicResource TextMutedBrush}"
                                                            FontSize="12"
                                                            VerticalAlignment="Center"
                                                            Margin="10,0,0,0" />
-                                                <Button Click="JumpToVideo_Click"
+                                                <Button AutomationProperties.Name="Watch this step in the session video" Click="JumpToVideo_Click"
                                                         ToolTip="Watch this step in the session video"
                                                         Margin="10,0,0,0"
                                                         Padding="8,0"
@@ -249,6 +234,7 @@
 
                                             <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
                                                 <Button Content="&#xE70F;"
+                                                        AutomationProperties.Name="Edit step"
                                                         ToolTip="Edit step: crop the screenshot, add numbered callouts, boxes and arrows, and change the title and description. The original capture is kept."
                                                         Click="EditScreenshot_Click"
                                                         Style="{StaticResource IconButton}" />
@@ -268,7 +254,7 @@
                                                         Style="{StaticResource IconButton}"
                                                         Margin="4,0,0,0" />
                                                 <Rectangle Width="1" Height="20"
-                                                           Fill="{StaticResource BorderSoftBrush}"
+                                                           Fill="{DynamicResource BorderSoftBrush}"
                                                            VerticalAlignment="Center"
                                                            Margin="8,0" />
                                                 <Button Content="&#xECC8;"
@@ -286,6 +272,7 @@
                                                         Style="{StaticResource IconButton}"
                                                         Margin="4,0,0,0" />
                                                 <Button Content="&#xE712;"
+                                                        AutomationProperties.Name="More step actions"
                                                         ToolTip="More: duplicate, merge with the next step, or split into two"
                                                         Click="MoreStepActions_Click"
                                                         Style="{StaticResource IconButton}"
@@ -302,7 +289,7 @@
                                                     </Button.ContextMenu>
                                                 </Button>
                                                 <Rectangle Width="1" Height="20"
-                                                           Fill="{StaticResource BorderSoftBrush}"
+                                                           Fill="{DynamicResource BorderSoftBrush}"
                                                            VerticalAlignment="Center"
                                                            Margin="8,0" />
                                                 <Button Content="&#xE74D;"
@@ -321,8 +308,8 @@
 
                                             <Border Grid.Column="0"
                                                     Width="284" Height="176"
-                                                    Background="{StaticResource SoftSurfaceBrush}"
-                                                    BorderBrush="{StaticResource BorderSoftBrush}"
+                                                    Background="{DynamicResource SoftSurfaceBrush}"
+                                                    BorderBrush="{DynamicResource BorderSoftBrush}"
                                                     BorderThickness="1"
                                                     CornerRadius="10"
                                                     ClipToBounds="True"
@@ -337,7 +324,7 @@
                                                             ToolTip="Shown with your edits. The original capture is kept; open the step editor and choose Reset to original to go back to it."
                                                             VerticalAlignment="Top"
                                                             Margin="10"
-                                                            Background="{StaticResource AccentBrush}"
+                                                            Background="{DynamicResource AccentBrush}"
                                                             CornerRadius="999"
                                                             Padding="8,3">
                                                         <Border.Style>
@@ -369,7 +356,7 @@
                                                             ToolTip="View screenshot"
                                                             Click="ViewScreenshot_Click"
                                                             Style="{StaticResource IconButton}"
-                                                            Background="#CCFFFFFF"
+                                                            Background="{DynamicResource OverlayButtonBrush}"
                                                             HorizontalAlignment="Right"
                                                             VerticalAlignment="Bottom"
                                                             Margin="0,0,10,10" />
@@ -382,14 +369,14 @@
                                                     <RowDefinition Height="Auto" />
                                                 </Grid.RowDefinitions>
 
-                                                <TextBox Grid.Row="0"
+                                                <TextBox AutomationProperties.Name="Step title" Grid.Row="0"
                                                          Text="{Binding UserTitle, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                                          TextChanged="StepTextChanged"
                                                          LostFocus="TextEdit_LostFocus"
                                                          FontSize="16"
                                                          FontWeight="SemiBold" />
 
-                                                <TextBox Grid.Row="1"
+                                                <TextBox AutomationProperties.Name="Step description" Grid.Row="1"
                                                          Text="{Binding UserDescription, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                                          TextChanged="StepTextChanged"
                                                          LostFocus="TextEdit_LostFocus"

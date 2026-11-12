@@ -12,16 +12,22 @@
 .PARAMETER RemoveUserData
     Also delete saved recordings and settings (%LOCALAPPDATA%\OpenSteps). This cannot be undone.
 
+.PARAMETER EvenIfRecording
+    Uninstall even when OpenSteps says it is recording or has unsaved work open. Without it the uninstall is
+    postponed (exit code 1618) so nobody loses a recording.
+
 .PARAMETER Quiet
     Only write to the log file, not the console.
 
 .NOTES
-    Exit codes: 0 = success, 1 = failure (see the log).
+    Exit codes: 0 = success, 1 = failure (see the log), 1618 = postponed because OpenSteps is recording or
+    has unsaved work open.
 #>
 [CmdletBinding()]
 param(
     [string]$InstallDir = (Join-Path $env:LOCALAPPDATA 'Programs\OpenSteps'),
     [switch]$RemoveUserData,
+    [switch]$EvenIfRecording,
     [switch]$Quiet,
     [string]$LogPath = (Join-Path $env:TEMP 'OpenSteps-uninstall.log')
 )
@@ -46,23 +52,78 @@ function Write-Log {
     }
 }
 
+function Send-OpenStepsCommand {
+    # Talks to the running app over its per-user named pipe (OpenSteps 0.5 and later).
+    # Returns the app's one-line reply, or $null when nothing answers (not running, or an older version).
+    param([string]$Command)
+    try {
+        $sid = [Security.Principal.WindowsIdentity]::GetCurrent().User.Value
+        $session = (Get-Process -Id $PID).SessionId
+        $pipe = New-Object System.IO.Pipes.NamedPipeClientStream('.', "OpenSteps-$session-$sid", [System.IO.Pipes.PipeDirection]::InOut)
+        try {
+            $pipe.Connect(2000)
+            $writer = New-Object System.IO.StreamWriter($pipe, (New-Object System.Text.UTF8Encoding($false)))
+            $writer.AutoFlush = $true
+            $reader = New-Object System.IO.StreamReader($pipe)
+            $writer.WriteLine($Command)
+            return $reader.ReadLine()
+        } finally {
+            $pipe.Dispose()
+        }
+    } catch {
+        return $null
+    }
+}
+
+function Stop-OpenSteps {
+    # Returns $true when OpenSteps is closed (or was not running), $false when it is busy and was left alone.
+    $target = [IO.Path]::GetFullPath($InstallDir).TrimEnd('\') + '\'
+    $running = @(Get-Process -Name 'OpenSteps.App' -ErrorAction SilentlyContinue | Where-Object {
+        try { $_.Path -and $_.Path.StartsWith($target, [StringComparison]::OrdinalIgnoreCase) } catch { $false }
+    })
+    if ($running.Count -eq 0) { return $true }
+
+    # Ask the app itself to save and close. It refuses while recording or while a dialog has unsaved work.
+    $reply = Send-OpenStepsCommand 'quit'
+    if ($reply -eq 'recording' -or $reply -eq 'busy') {
+        if (-not $EvenIfRecording) {
+            $what = if ($reply -eq 'recording') { 'a recording is in progress' } else { 'it has unsaved work open' }
+            Write-Log "OpenSteps is running and $what; leaving it alone. Run again later, or use -EvenIfRecording to close it anyway." 'WARN'
+            return $false
+        }
+        Write-Log "OpenSteps reports '$reply' but -EvenIfRecording was given; closing it." 'WARN'
+    } elseif ($reply -eq 'ok') {
+        Write-Log 'OpenSteps saved its work and is closing.'
+    } else {
+        # An older version without the control pipe: fall back to asking its window to close.
+        Write-Log 'OpenSteps is running; asking it to close so it can save its session.'
+        foreach ($process in $running) { [void]$process.CloseMainWindow() }
+    }
+
+    $deadline = (Get-Date).AddSeconds(15)
+    while ((Get-Date) -lt $deadline -and @($running | Where-Object { -not $_.HasExited }).Count -gt 0) {
+        Start-Sleep -Milliseconds 500
+        foreach ($process in $running) { $process.Refresh() }
+    }
+    foreach ($process in $running) {
+        if (-not $process.HasExited) {
+            Write-Log "Stopping OpenSteps process $($process.Id)." 'WARN'
+            Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
+        }
+    }
+    Start-Sleep -Milliseconds 500
+    return $true
+}
+
 try {
     # The script may be running from inside the folder it is about to delete.
     Set-Location -LiteralPath ([IO.Path]::GetTempPath())
     $InstallDir = [IO.Path]::GetFullPath($InstallDir).TrimEnd('\')
     Write-Log "Uninstalling OpenSteps from $InstallDir"
 
-    $prefix = $InstallDir + '\'
-    $running = @(Get-Process -Name 'OpenSteps.App' -ErrorAction SilentlyContinue | Where-Object {
-        try { $_.Path -and $_.Path.StartsWith($prefix, [StringComparison]::OrdinalIgnoreCase) } catch { $false }
-    })
-    foreach ($process in $running) { [void]$process.CloseMainWindow() }
-    $deadline = (Get-Date).AddSeconds(15)
-    while ((Get-Date) -lt $deadline -and @($running | Where-Object { $_.Refresh(); -not $_.HasExited }).Count -gt 0) {
-        Start-Sleep -Milliseconds 500
-    }
-    foreach ($process in $running) {
-        if (-not $process.HasExited) { Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue }
+    if (-not (Stop-OpenSteps)) {
+        Write-Log 'Uninstall postponed so no work is lost. Exit code 1618 asks Intune / Configuration Manager to retry later.'
+        exit 1618
     }
 
     foreach ($shortcut in $Shortcuts) {

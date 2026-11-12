@@ -45,6 +45,10 @@
     Reinstall even when the same version is already installed. Without it, re-running with the same
     version only refreshes shortcuts and the Settings > Apps entry (cheap enough for a logon script).
 
+.PARAMETER EvenIfRecording
+    Upgrade even when OpenSteps says it is recording or has unsaved work open. Without it the upgrade is
+    postponed (exit code 1618) so nobody loses a recording; the video of an interrupted recording cannot be saved.
+
 .PARAMETER Quiet
     Only write to the log file, not the console (for Intune, SCCM and logon scripts).
 
@@ -58,7 +62,8 @@
     .\Install-OpenSteps.ps1 -Version v0.4.0 -ExpectedSha256 <hash> -Quiet
 
 .NOTES
-    Exit codes: 0 = success, 1 = failure (see the log).
+    Exit codes: 0 = success, 1 = failure (see the log), 1618 = postponed because OpenSteps is recording or
+    has unsaved work open (Intune and Configuration Manager treat 1618 as "retry later").
 #>
 [CmdletBinding()]
 param(
@@ -71,6 +76,7 @@ param(
     [switch]$NoStartMenuShortcut,
     [switch]$Launch,
     [switch]$Force,
+    [switch]$EvenIfRecording,
     [switch]$Quiet,
     [string]$LogPath = (Join-Path $env:LOCALAPPDATA 'OpenSteps\install.log')
 )
@@ -166,15 +172,54 @@ function Resolve-PackageFolder {
     return $exe.DirectoryName
 }
 
+function Send-OpenStepsCommand {
+    # Talks to the running app over its per-user named pipe (OpenSteps 0.5 and later).
+    # Returns the app's one-line reply, or $null when nothing answers (not running, or an older version).
+    param([string]$Command)
+    try {
+        $sid = [Security.Principal.WindowsIdentity]::GetCurrent().User.Value
+        $session = (Get-Process -Id $PID).SessionId
+        $pipe = New-Object System.IO.Pipes.NamedPipeClientStream('.', "OpenSteps-$session-$sid", [System.IO.Pipes.PipeDirection]::InOut)
+        try {
+            $pipe.Connect(2000)
+            $writer = New-Object System.IO.StreamWriter($pipe, (New-Object System.Text.UTF8Encoding($false)))
+            $writer.AutoFlush = $true
+            $reader = New-Object System.IO.StreamReader($pipe)
+            $writer.WriteLine($Command)
+            return $reader.ReadLine()
+        } finally {
+            $pipe.Dispose()
+        }
+    } catch {
+        return $null
+    }
+}
+
 function Stop-OpenSteps {
+    # Returns $true when OpenSteps is closed (or was not running), $false when it is busy and was left alone.
     $target = [IO.Path]::GetFullPath($InstallDir).TrimEnd('\') + '\'
     $running = @(Get-Process -Name 'OpenSteps.App' -ErrorAction SilentlyContinue | Where-Object {
         try { $_.Path -and $_.Path.StartsWith($target, [StringComparison]::OrdinalIgnoreCase) } catch { $false }
     })
-    if ($running.Count -eq 0) { return }
+    if ($running.Count -eq 0) { return $true }
 
-    Write-Log 'OpenSteps is running; asking it to close so it can save its session.'
-    foreach ($process in $running) { [void]$process.CloseMainWindow() }
+    # Ask the app itself to save and close. It refuses while recording or while a dialog has unsaved work.
+    $reply = Send-OpenStepsCommand 'quit'
+    if ($reply -eq 'recording' -or $reply -eq 'busy') {
+        if (-not $EvenIfRecording) {
+            $what = if ($reply -eq 'recording') { 'a recording is in progress' } else { 'it has unsaved work open' }
+            Write-Log "OpenSteps is running and $what; leaving it alone. Run again later, or use -EvenIfRecording to close it anyway." 'WARN'
+            return $false
+        }
+        Write-Log "OpenSteps reports '$reply' but -EvenIfRecording was given; closing it." 'WARN'
+    } elseif ($reply -eq 'ok') {
+        Write-Log 'OpenSteps saved its work and is closing.'
+    } else {
+        # An older version without the control pipe: fall back to asking its window to close.
+        Write-Log 'OpenSteps is running; asking it to close so it can save its session.'
+        foreach ($process in $running) { [void]$process.CloseMainWindow() }
+    }
+
     $deadline = (Get-Date).AddSeconds(15)
     while ((Get-Date) -lt $deadline -and @($running | Where-Object { -not $_.HasExited }).Count -gt 0) {
         Start-Sleep -Milliseconds 500
@@ -187,6 +232,7 @@ function Stop-OpenSteps {
         }
     }
     Start-Sleep -Milliseconds 500
+    return $true
 }
 
 function Install-Files {
@@ -276,7 +322,10 @@ try {
     } elseif (-not $Force -and $installedVersion -and $installedVersion -eq $packageVersion) {
         Write-Log "Version $installedVersion is already installed; refreshing shortcuts and registration only. Use -Force to reinstall."
     } else {
-        Stop-OpenSteps
+        if (-not (Stop-OpenSteps)) {
+            Write-Log 'Upgrade postponed so no work is lost. Exit code 1618 asks Intune / Configuration Manager to retry later.'
+            exit 1618
+        }
         Install-Files -PackageFolder $packageFolder
     }
 

@@ -155,8 +155,8 @@ public partial class StepEditWindow : Window
         foreach (var (button, buttonTool) in ToolButtons())
         {
             var selected = buttonTool == tool;
-            button.Background = selected ? new SolidColorBrush(WpfColor.FromRgb(0xE6, 0xEC, 0xFF)) : (WpfBrush)FindResource("PanelBackgroundBrush");
-            button.BorderBrush = selected ? (WpfBrush)FindResource("FocusBorderBrush") : (WpfBrush)FindResource("BorderBrush");
+            button.SetResourceReference(BackgroundProperty, selected ? "SelectedSurfaceBrush" : "PanelBackgroundBrush");
+            button.SetResourceReference(BorderBrushProperty, selected ? "FocusBorderBrush" : "BorderBrush");
             button.FontWeight = selected ? FontWeights.SemiBold : FontWeights.Normal;
         }
 
@@ -568,9 +568,14 @@ public partial class StepEditWindow : Window
     {
         foreach (var swatch in ColorPanel.Children.OfType<WpfButton>())
         {
-            swatch.BorderBrush = string.Equals(swatch.Tag as string, _color, StringComparison.OrdinalIgnoreCase)
-                ? (WpfBrush)FindResource("TextPrimaryBrush")
-                : WpfBrushes.Transparent;
+            if (string.Equals(swatch.Tag as string, _color, StringComparison.OrdinalIgnoreCase))
+            {
+                swatch.SetResourceReference(BorderBrushProperty, "TextPrimaryBrush");
+            }
+            else
+            {
+                swatch.BorderBrush = WpfBrushes.Transparent;
+            }
         }
     }
 

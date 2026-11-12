@@ -124,7 +124,9 @@ public sealed class SessionStore : ISessionStorageService
                 CreatedAt = session.CreatedAt,
                 UpdatedAt = session.UpdatedAt,
                 StepCount = session.Steps.Count,
-                ThumbnailPath = session.Steps.Select(step => step.EffectiveScreenshotPath).FirstOrDefault(path => !string.IsNullOrWhiteSpace(path) && File.Exists(path))
+                ThumbnailPath = session.Steps.Select(step => step.EffectiveScreenshotPath).FirstOrDefault(path => !string.IsNullOrWhiteSpace(path) && File.Exists(path)),
+                Tags = [.. session.Tags],
+                HasVideo = session.Segments.Any(segment => segment.HasVideo)
             });
         }
 
@@ -151,6 +153,18 @@ public sealed class SessionStore : ISessionStorageService
         }
 
         session.Title = string.IsNullOrWhiteSpace(newTitle) ? "Untitled OpenSteps Guide" : newTitle.Trim();
+        await SaveSessionAsync(session, cancellationToken);
+    }
+
+    public async Task SetSessionTagsAsync(Guid sessionId, IEnumerable<string> tags, CancellationToken cancellationToken = default)
+    {
+        var session = await LoadSessionAsync(sessionId, cancellationToken);
+        if (session is null)
+        {
+            return;
+        }
+
+        session.Tags = SessionLibrary.ParseTags(SessionLibrary.FormatTags(tags));
         await SaveSessionAsync(session, cancellationToken);
     }
 

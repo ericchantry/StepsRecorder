@@ -16,6 +16,9 @@ public sealed class AppSettings
     /// <summary>Screen area (physical pixels) to record when <see cref="ScreenshotMode"/> is Region.</summary>
     public ScreenBounds? CaptureRegion { get; set; }
 
+    /// <summary>Colour theme: follow Windows, or always light or dark. A Windows contrast theme always wins.</summary>
+    public AppTheme Theme { get; set; } = AppTheme.System;
+
     /// <summary>Draw a soft halo around the mouse pointer in the video so it is easy to follow.</summary>
     public bool HighlightCursor { get; set; } = true;
 

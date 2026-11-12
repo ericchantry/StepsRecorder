@@ -7,6 +7,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
 using OpenSteps.Core.Models;
+using OpenSteps.Core.Services;
 using WinForms = System.Windows.Forms;
 
 namespace OpenSteps.App;
@@ -15,6 +16,7 @@ public partial class SessionPickerWindow : Window, INotifyPropertyChanged
 {
     private readonly MainWindow _controller;
     private int _sessionGridColumns = 1;
+    private IReadOnlyList<SessionSummary> _allSessions = [];
 
     public SessionPickerWindow(MainWindow controller)
     {
@@ -47,14 +49,99 @@ public partial class SessionPickerWindow : Window, INotifyPropertyChanged
 
     public async Task RefreshSessionsAsync()
     {
+        _allSessions = await _controller.ListSavedSessionsAsync();
+        ApplyFilter();
+    }
+
+    /// <summary>Shows the guides matching the search box (title or tags; #word matches tags only).</summary>
+    private void ApplyFilter()
+    {
+        var query = SearchBox.Text;
         Sessions.Clear();
-        foreach (var session in await _controller.ListSavedSessionsAsync())
+        foreach (var session in SessionLibrary.Filter(_allSessions, query))
         {
             Sessions.Add(session);
         }
 
         SessionGridColumns = Math.Clamp(Sessions.Count, 1, 3);
         EmptyText.Visibility = Sessions.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+        var searching = !string.IsNullOrWhiteSpace(query) && _allSessions.Count > 0;
+        EmptyTitle.Text = searching ? "No guides match your search" : "No saved guides yet";
+        EmptyHint.Text = searching ? "Try a different word, or clear the search box." : "Capture a recording and it will appear here.";
+        SearchPlaceholder.Visibility = string.IsNullOrEmpty(query) ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    private void SearchBox_TextChanged(object sender, TextChangedEventArgs e)
+    {
+        if (IsLoaded)
+        {
+            ApplyFilter();
+        }
+    }
+
+    protected override void OnPreviewKeyDown(System.Windows.Input.KeyEventArgs e)
+    {
+        base.OnPreviewKeyDown(e);
+        if (e.Key == System.Windows.Input.Key.F && System.Windows.Input.Keyboard.Modifiers == System.Windows.Input.ModifierKeys.Control)
+        {
+            SearchBox.Focus();
+            SearchBox.SelectAll();
+            e.Handled = true;
+        }
+        else if (e.Key == System.Windows.Input.Key.Escape && SearchBox.IsKeyboardFocused && SearchBox.Text.Length > 0)
+        {
+            SearchBox.Clear();
+            e.Handled = true;
+        }
+    }
+
+    private async void SessionsList_KeyDown(object sender, System.Windows.Input.KeyEventArgs e)
+    {
+        if (e.Key == System.Windows.Input.Key.Enter && SessionsList.SelectedItem is SessionSummary summary)
+        {
+            e.Handled = true;
+            await _controller.OpenSavedSessionAsync(summary.Id);
+            Close();
+        }
+    }
+
+    private async void Rename_Click(object sender, RoutedEventArgs e)
+    {
+        if ((sender as FrameworkElement)?.DataContext is not SessionSummary summary)
+        {
+            return;
+        }
+
+        var title = TextPromptWindow.Ask(this, "Rename guide", "Guide title", null, summary.Title);
+        if (string.IsNullOrWhiteSpace(title) || title == summary.Title)
+        {
+            return;
+        }
+
+        await _controller.RenameSavedSessionFromLibraryAsync(summary.Id, title);
+        await RefreshSessionsAsync();
+    }
+
+    private async void Tags_Click(object sender, RoutedEventArgs e)
+    {
+        if ((sender as FrameworkElement)?.DataContext is not SessionSummary summary)
+        {
+            return;
+        }
+
+        var text = TextPromptWindow.Ask(
+            this,
+            "Edit tags",
+            $"Tags for \"{summary.Title}\"",
+            "Separate tags with commas, e.g. billing, month end, onboarding. Leave empty to remove all tags.",
+            SessionLibrary.FormatTags(summary.Tags));
+        if (text is null)
+        {
+            return;
+        }
+
+        await _controller.SetSavedSessionTagsAsync(summary.Id, SessionLibrary.ParseTags(text));
+        await RefreshSessionsAsync();
     }
 
     private void OpenFolder_Click(object sender, RoutedEventArgs e)

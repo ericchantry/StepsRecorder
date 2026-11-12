@@ -7,8 +7,8 @@
         Background="Transparent" Topmost="True"
         ShowInTaskbar="False" ShowActivated="False">
     <Border Margin="10"
-            Background="{StaticResource PanelBackgroundBrush}"
-            BorderBrush="{StaticResource InfoBrush}"
+            Background="{DynamicResource PanelBackgroundBrush}"
+            BorderBrush="{DynamicResource InfoBrush}"
             BorderThickness="2"
             CornerRadius="12"
             Padding="16,12">
@@ -19,17 +19,17 @@
             <TextBlock Text="&#xE7C4;"
                        FontFamily="Segoe MDL2 Assets"
                        FontSize="18"
-                       Foreground="{StaticResource InfoBrush}"
+                       Foreground="{DynamicResource InfoBrush}"
                        VerticalAlignment="Center"
                        Margin="0,0,12,0" />
             <StackPanel VerticalAlignment="Center">
                 <TextBlock Text="Click the window you want to record"
                            FontSize="14"
                            FontWeight="SemiBold"
-                           Foreground="{StaticResource TextPrimaryBrush}" />
+                           Foreground="{DynamicResource TextPrimaryBrush}" />
                 <TextBlock Text="Click its title bar to avoid pressing anything inside it."
                            FontSize="12"
-                           Foreground="{StaticResource TextSecondaryBrush}"
+                           Foreground="{DynamicResource TextSecondaryBrush}"
                            Margin="0,2,0,0" />
             </StackPanel>
             <Button Content="Cancel"

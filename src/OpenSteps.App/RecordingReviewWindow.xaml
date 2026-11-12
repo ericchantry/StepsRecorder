@@ -3,7 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Recording review" Width="1280" Height="780" MinWidth="900" MinHeight="520"
         WindowStartupLocation="CenterOwner"
-        Background="{StaticResource AppBackgroundBrush}">
+        Background="{DynamicResource AppBackgroundBrush}">
     <Grid Margin="16">
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="*" />
@@ -21,7 +21,7 @@
                 </Grid.RowDefinitions>
 
                 <DockPanel Grid.Row="0" Margin="0,0,0,10">
-                    <ComboBox x:Name="SegmentPicker"
+                    <ComboBox AutomationProperties.Name="Recording part" x:Name="SegmentPicker"
                               DockPanel.Dock="Right"
                               Width="220"
                               DisplayMemberPath="Label"
@@ -33,13 +33,13 @@
                                    FontSize="16"
                                    FontWeight="SemiBold"
                                    TextTrimming="CharacterEllipsis"
-                                   Foreground="{StaticResource TextPrimaryBrush}" />
+                                   Foreground="{DynamicResource TextPrimaryBrush}" />
                     </StackPanel>
                 </DockPanel>
 
                 <Border Grid.Row="1" Background="Black" CornerRadius="8" ClipToBounds="True">
                     <Grid>
-                        <MediaElement x:Name="Player"
+                        <MediaElement AutomationProperties.Name="Session video" x:Name="Player"
                                       LoadedBehavior="Manual"
                                       UnloadedBehavior="Manual"
                                       ScrubbingEnabled="True"
@@ -81,7 +81,7 @@
                             Style="{StaticResource IconButton}"
                             Width="36" Height="36"
                             Margin="4,0,0,0" />
-                    <Slider x:Name="PositionSlider"
+                    <Slider AutomationProperties.Name="Video position" x:Name="PositionSlider"
                             Grid.Column="2"
                             VerticalAlignment="Center"
                             Margin="12,0"
@@ -91,9 +91,9 @@
                                Grid.Column="3"
                                FontFamily="Consolas"
                                VerticalAlignment="Center"
-                               Foreground="{StaticResource TextSecondaryBrush}"
+                               Foreground="{DynamicResource TextSecondaryBrush}"
                                Margin="0,0,12,0" />
-                    <ComboBox x:Name="SpeedPicker"
+                    <ComboBox AutomationProperties.Name="Playback speed" x:Name="SpeedPicker"
                               Grid.Column="4"
                               Width="76"
                               SelectedIndex="1"
@@ -122,7 +122,7 @@
                            Text="Input timeline"
                            FontSize="16"
                            FontWeight="SemiBold"
-                           Foreground="{StaticResource TextPrimaryBrush}" />
+                           Foreground="{DynamicResource TextPrimaryBrush}" />
 
                 <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,8,0,10">
                     <RadioButton Content="All" IsChecked="True" GroupName="Filter" Tag="All" Checked="Filter_Checked" Margin="0,0,14,0" />
@@ -131,7 +131,7 @@
                     <RadioButton Content="Mouse" GroupName="Filter" Tag="Mouse" Checked="Filter_Checked" />
                 </StackPanel>
 
-                <ListBox x:Name="TimelineList"
+                <ListBox AutomationProperties.Name="Keyboard and mouse timeline" x:Name="TimelineList"
                          Grid.Row="2"
                          BorderThickness="0"
                          Background="Transparent"
@@ -150,23 +150,23 @@
                                            Text="{Binding TimeLabel}"
                                            FontFamily="Consolas"
                                            FontSize="12"
-                                           Foreground="{StaticResource TextMutedBrush}"
+                                           Foreground="{DynamicResource TextMutedBrush}"
                                            Margin="0,1,0,0" />
                                 <StackPanel Grid.Column="1">
                                     <TextBlock x:Name="LabelText"
                                                Text="{Binding Label}"
                                                TextWrapping="Wrap"
                                                FontSize="13"
-                                               Foreground="{StaticResource TextPrimaryBrush}" />
+                                               Foreground="{DynamicResource TextPrimaryBrush}" />
                                     <TextBlock Text="{Binding Detail}"
                                                TextWrapping="Wrap"
                                                FontSize="11.5"
-                                               Foreground="{StaticResource TextMutedBrush}" />
+                                               Foreground="{DynamicResource TextMutedBrush}" />
                                     <TextBlock Text="{Binding RawKeys, StringFormat=Keys: {0}}"
                                                TextWrapping="Wrap"
                                                FontSize="11.5"
                                                FontFamily="Consolas"
-                                               Foreground="{StaticResource TextMutedBrush}">
+                                               Foreground="{DynamicResource TextMutedBrush}">
                                         <TextBlock.Style>
                                             <Style TargetType="TextBlock">
                                                 <Style.Triggers>
@@ -182,7 +182,7 @@
                             <DataTemplate.Triggers>
                                 <DataTrigger Binding="{Binding IsStep}" Value="True">
                                     <Setter TargetName="LabelText" Property="FontWeight" Value="SemiBold" />
-                                    <Setter TargetName="LabelText" Property="Foreground" Value="{StaticResource InfoBrush}" />
+                                    <Setter TargetName="LabelText" Property="Foreground" Value="{DynamicResource InfoBrush}" />
                                 </DataTrigger>
                             </DataTemplate.Triggers>
                         </DataTemplate>

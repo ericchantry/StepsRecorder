@@ -187,6 +187,7 @@ public partial class MainWindow
             }
         }
 
+        WriteRecordingMarker(segment, segment.VideoPath);
         _clock.Start();
         RaiseRecordingOptionsChanged();
     }
@@ -218,6 +219,7 @@ public partial class MainWindow
         }
 
         _currentSegment = null;
+        ClearRecordingMarker();
         RaiseRecordingOptionsChanged();
 
         if (segment.VideoError is { } error)
@@ -247,6 +249,7 @@ public partial class MainWindow
         }
 
         TryDeleteFile(segment.VideoPath);
+        ClearRecordingMarker();
         _session.Segments.Remove(segment);
         _session.InputEvents.RemoveAll(inputEvent => inputEvent.Segment == segment.Number);
         _currentSegment = null;

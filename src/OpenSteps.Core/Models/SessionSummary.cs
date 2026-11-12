@@ -13,4 +13,11 @@ public sealed class SessionSummary
     public int StepCount { get; set; }
 
     public string? ThumbnailPath { get; set; }
+
+    public List<string> Tags { get; set; } = [];
+
+    public bool HasTags => Tags.Count > 0;
+
+    /// <summary>True when the guide has a session video.</summary>
+    public bool HasVideo { get; set; }
 }

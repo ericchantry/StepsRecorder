@@ -75,7 +75,9 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         {
             PositionControllerBottomCenter();
             await LoadSettingsAsync();
+            await RecoverInterruptedRecordingsAsync();
         };
+        InitializeReliability();
         _typingTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(850) };
         _typingTimer.Tick += async (_, _) => await FinalizePendingTypingAsync();
         _recordingStatusTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
@@ -1346,6 +1348,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     {
         StopHooks();
         StopVideoForShutdown();
+        ClearRecordingMarker();
         _reviewWindow?.Close();
         _recordingBar?.Close();
         if (_trayIcon is not null)
