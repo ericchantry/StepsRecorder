@@ -13,6 +13,9 @@ public sealed class AppSettings
     /// <summary>Process name of the window to record when <see cref="ScreenshotMode"/> is Window.</summary>
     public string? CaptureWindowProcessName { get; set; }
 
+    /// <summary>Light, dark, or whatever Windows is set to.</summary>
+    public AppThemePreference Theme { get; set; } = AppThemePreference.System;
+
     /// <summary>Screen area (physical pixels) to record when <see cref="ScreenshotMode"/> is Region.</summary>
     public ScreenBounds? CaptureRegion { get; set; }
 

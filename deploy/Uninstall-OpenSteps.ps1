@@ -56,8 +56,20 @@ try {
     $running = @(Get-Process -Name 'OpenSteps.App' -ErrorAction SilentlyContinue | Where-Object {
         try { $_.Path -and $_.Path.StartsWith($prefix, [StringComparison]::OrdinalIgnoreCase) } catch { $false }
     })
-    foreach ($process in $running) { [void]$process.CloseMainWindow() }
-    $deadline = (Get-Date).AddSeconds(15)
+    # OpenSteps 0.5 and later save their work and exit when this signal is set, whatever window is showing.
+    $signalled = $false
+    try {
+        $handle = $null
+        if ($running.Count -gt 0 -and [System.Threading.EventWaitHandle]::TryOpenExisting('Local\OpenSteps.Shutdown', [ref]$handle)) {
+            [void]$handle.Set()
+            $handle.Dispose()
+            $signalled = $true
+        }
+    } catch { }
+    if (-not $signalled) {
+        foreach ($process in $running) { [void]$process.CloseMainWindow() }
+    }
+    $deadline = (Get-Date).AddSeconds($(if ($signalled) { 45 } else { 15 }))
     while ((Get-Date) -lt $deadline -and @($running | Where-Object { $_.Refresh(); -not $_.HasExited }).Count -gt 0) {
         Start-Sleep -Milliseconds 500
     }

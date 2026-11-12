@@ -27,9 +27,19 @@ Everything stays on your computer. No account, no cloud, no telemetry, and no ad
 - **Bug reports and QA** – exact steps to reproduce an issue, with the video and every keystroke to prove it.
 - **Support** – customer and internal walkthroughs.
 
-## What's new in 0.4
+## What's new in 0.5
 
 Full release history: [CHANGELOG.md](CHANGELOG.md).
+
+- **The keyboard is only listened to when you ask for it.** The **Keyboard** option (formerly *Typed text*) now controls the keyboard hook itself. With it off, paused, or blocked by IT, no keystroke reaches OpenSteps.
+- **A fuller step editor.** A **Select** tool moves and resizes any edit, **Text** adds labels, and seven colours can be used for new edits or to recolour a selected one.
+- **Work on several steps at once.** Tick steps to delete them together or merge them into one, and duplicate a step with one click.
+- **Recordings survive a crash.** The guide is saved every few seconds while you record. If OpenSteps closes unexpectedly, the next start offers the guide back.
+- **Dark and high-contrast themes.** OpenSteps follows the Windows app mode and contrast theme; the button next to Close switches between Match Windows, Light and Dark.
+- **A searchable library.** Search saved guides by title or tag, add tags, and rename guides without opening them.
+- **Screen-reader names** on every button and field, **one running copy** at a time, and **safer upgrades** that never interrupt a recording.
+
+## What's new in 0.4
 
 - **A step editor.** Click the pencil on any step to crop its screenshot, add numbered callouts, boxes, arrows, highlights and blur, and edit its title and description, all in one window. Callouts number themselves and close up when one is removed. Right-click an edit to remove it; undo and redo work throughout.
 - **Your original capture is never changed.** Edits are saved as a list and drawn onto a copy, so you can open a step again later and move on from where you left off, remove a single arrow, change the crop, or choose **Reset to original**.
@@ -80,14 +90,14 @@ OpenSteps is not code-signed yet. SmartScreen may warn on first launch, and secu
      - *Window · …* – one app window you choose, e.g. *Window · Q3 Budget.xlsx - Excel*. Screenshots and the video show only that window, following it if you move or resize it (pop-up menus and dialogs show where they overlap it). Clicks and typing in other apps still become steps, but their screenshots show the chosen window. Pick from the list of open windows, or choose **Pick a window by clicking it…** and click the one you want; it's outlined so you can confirm.
      - *Region · 1280×720* – a rectangle you draw. Choose **Select a region…**, drag over the area (Esc cancels, Enter keeps the current one), and screenshots and the video show only that area. Clicks outside it, and typing in windows that don't overlap it, are ignored. The region is remembered until you draw a new one.
    - **Video** – record a video of the session.
-   - **Typed text** – record the characters you type (password fields are always masked).
+   - **Keyboard** – record what you type, plus keys and shortcuts (password fields are always masked). When it is off, OpenSteps does not listen to the keyboard at all.
    - **Highlight cursor** – show a yellow halo around the pointer in the video. Clicks are always marked, in screenshots and video, with a colour and label for each kind of click.
 2. **Press Record** (●). The recorder bar hides and a small bar appears at the bottom of the screen:
    - **Pause / Resume** – nothing is recorded while paused, and the pause is cut from the video.
    - **Stop** – finish and open the guide editor.
    - **Cancel** – discard this recording (asks first).
 
-   The tray icon has the same controls, plus **Record typed text** so you can switch it off before typing something private.
+   The tray icon has the same controls, plus **Record keyboard** so you can switch it off before typing something private.
 3. **Do the task.** Each click, double-click, right-click, Enter/Tab/Escape, function key and shortcut becomes a step with a screenshot. Typing is grouped into one step per field.
 4. **Edit the guide.** Rename it, edit step titles and descriptions, reorder, delete or insert steps, and replace screenshots by capturing, importing or pasting. Click the pencil on a step to open the step editor:
    - **Crop** – drag over the part to keep. The rest is dimmed, not deleted; **Remove crop** brings it back.
@@ -130,7 +140,7 @@ OpenSteps only records while you have pressed Record, and shows the recording ba
 
 Each session holds a `session.json` (steps, input timeline, system details), its screenshots and its videos. You can reopen, rename, edit, export or delete sessions.
 
-- **Typed text** is on by default so repro steps show exactly what was entered. Characters typed into password fields, or fields named like PIN, CVV, card number or security code, are never stored. Turn **Typed text** off on the recorder bar or from the tray to record only key names, shortcuts and key counts. IT can force it off.
+- **Typed text** is on by default so repro steps show exactly what was entered. Characters typed into password fields, or fields named like PIN, CVV, card number or security code, are never stored. Turn **Keyboard** off on the recorder bar or from the tray and OpenSteps stops listening to the keyboard completely: its keyboard hook is removed, so no typed text, keys or shortcuts are recorded. The hook is also removed while a recording is paused. IT can force it off.
 - **Password and sensitive fields are covered** in screenshots and in the video as they are captured, so their contents never reach the disk. OpenSteps finds them with Windows UI Automation: password fields, and fields whose name looks like a secret (PIN, CVV, card number, SSN, security code, API key…). It reads where these fields are and what they are called, never what is in them.
 - **The video records everything else visible on screen**, including text in ordinary fields. Pause before showing anything private, and review the video before you share an export.
 - **Screenshots** can contain private data too. Use crop and redaction, or Active Window mode, and review every step.

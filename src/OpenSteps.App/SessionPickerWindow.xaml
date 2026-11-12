@@ -4,7 +4,7 @@
         xmlns:local="clr-namespace:OpenSteps.App"
         Title="Saved guides" Width="820" Height="560" MinWidth="640" MinHeight="440"
         WindowStartupLocation="CenterScreen"
-        Background="{StaticResource AppBackgroundBrush}">
+        Background="{DynamicResource AppBackgroundBrush}">
     <Window.Resources>
         <local:FileImageConverter x:Key="FileImageConverter" />
     </Window.Resources>
@@ -12,8 +12,8 @@
 
         <!--  ─────────── Header ────────────────────────────────────── -->
         <Border DockPanel.Dock="Top"
-                Background="{StaticResource PanelBackgroundBrush}"
-                BorderBrush="{StaticResource BorderSoftBrush}"
+                Background="{DynamicResource PanelBackgroundBrush}"
+                BorderBrush="{DynamicResource BorderSoftBrush}"
                 BorderThickness="0,0,0,1"
                 Padding="24,18">
             <Grid>
@@ -24,9 +24,31 @@
 
                 <StackPanel VerticalAlignment="Center">
                     <TextBlock Text="Saved guides" Style="{StaticResource DisplayText}" FontSize="20" />
-                    <TextBlock Text="Open a previous capture or browse the folder on disk."
+                    <TextBlock x:Name="CountText"
+                               Text="Open a previous capture or browse the folder on disk."
                                Style="{StaticResource SubtleText}"
                                Margin="0,2,0,0" />
+                    <Grid Margin="0,12,16,0" MaxWidth="420" HorizontalAlignment="Left" Width="420">
+                        <TextBox x:Name="SearchBox"
+                                 MinHeight="34"
+                                 Padding="30,0,8,0"
+                                 VerticalContentAlignment="Center"
+                                 ToolTip="Search guides by title or tag. Type #tag to show only guides with that tag."
+                                 TextChanged="SearchBox_TextChanged" />
+                        <TextBlock Text="&#xE721;"
+                                   FontFamily="Segoe MDL2 Assets"
+                                   FontSize="13"
+                                   Foreground="{DynamicResource TextMutedBrush}"
+                                   VerticalAlignment="Center"
+                                   Margin="10,0,0,0"
+                                   IsHitTestVisible="False" />
+                        <TextBlock x:Name="SearchPlaceholder"
+                                   Text="Search by title or tag"
+                                   Foreground="{DynamicResource TextMutedBrush}"
+                                   VerticalAlignment="Center"
+                                   Margin="32,0,0,0"
+                                   IsHitTestVisible="False" />
+                    </Grid>
                 </StackPanel>
 
                 <Button Grid.Column="1"
@@ -53,21 +75,23 @@
                         VerticalAlignment="Center"
                         Visibility="Collapsed">
                 <Border Width="56" Height="56"
-                        Background="{StaticResource SoftSurfaceBrush}"
+                        Background="{DynamicResource SoftSurfaceBrush}"
                         CornerRadius="14"
                         HorizontalAlignment="Center">
                     <TextBlock Text="&#xE8B7;"
                                FontFamily="Segoe MDL2 Assets"
                                FontSize="22"
-                               Foreground="{StaticResource TextMutedBrush}"
+                               Foreground="{DynamicResource TextMutedBrush}"
                                HorizontalAlignment="Center"
                                VerticalAlignment="Center" />
                 </Border>
-                <TextBlock Text="No saved guides yet"
+                <TextBlock x:Name="EmptyHeading"
+                           Text="No saved guides yet"
                            Style="{StaticResource HeadingText}"
                            HorizontalAlignment="Center"
                            Margin="0,18,0,4" />
-                <TextBlock Text="Capture a recording and it will appear here."
+                <TextBlock x:Name="EmptyDetail"
+                           Text="Capture a recording and it will appear here."
                            Style="{StaticResource SubtleText}"
                            HorizontalAlignment="Center" />
             </StackPanel>
@@ -92,8 +116,8 @@
                     <ListBox.ItemTemplate>
                         <DataTemplate>
                             <Border x:Name="SessionCard"
-                                    Background="{StaticResource PanelBackgroundBrush}"
-                                    BorderBrush="{StaticResource BorderSoftBrush}"
+                                    Background="{DynamicResource PanelBackgroundBrush}"
+                                    BorderBrush="{DynamicResource BorderSoftBrush}"
                                     BorderThickness="1"
                                     CornerRadius="12"
                                     Margin="0,0,12,12"
@@ -110,7 +134,7 @@
                                     <Style TargetType="Border">
                                         <Style.Triggers>
                                             <Trigger Property="IsMouseOver" Value="True">
-                                                <Setter Property="BorderBrush" Value="{StaticResource BorderEmphasisBrush}" />
+                                                <Setter Property="BorderBrush" Value="{DynamicResource BorderEmphasisBrush}" />
                                             </Trigger>
                                         </Style.Triggers>
                                     </Style>
@@ -124,20 +148,34 @@
 
                                     <!--  Thumbnail  -->
                                     <Border Grid.Row="0"
-                                            Background="{StaticResource SoftSurfaceBrush}"
+                                            Background="{DynamicResource SoftSurfaceBrush}"
                                             CornerRadius="11,11,0,0"
                                             ClipToBounds="True">
                                         <Grid>
                                             <Image Source="{Binding ThumbnailPath, Converter={StaticResource FileImageConverter}}"
                                                    Stretch="UniformToFill" />
-                                            <Button Content="&#xE74D;"
-                                                    ToolTip="Delete guide"
-                                                    Click="Delete_Click"
-                                                    Style="{StaticResource IconButton}"
-                                                    Background="#CCFFFFFF"
-                                                    HorizontalAlignment="Right"
-                                                    VerticalAlignment="Top"
-                                                    Margin="8" />
+                                            <StackPanel Orientation="Horizontal"
+                                                        HorizontalAlignment="Right"
+                                                        VerticalAlignment="Top"
+                                                        Margin="8">
+                                                <Button Content="&#xE8AC;"
+                                                        ToolTip="Rename guide"
+                                                        Click="Rename_Click"
+                                                        Style="{StaticResource IconButton}"
+                                                        Background="{DynamicResource OverlayButtonBrush}" />
+                                                <Button Content="&#xE8EC;"
+                                                        ToolTip="Edit tags"
+                                                        Click="EditTags_Click"
+                                                        Style="{StaticResource IconButton}"
+                                                        Background="{DynamicResource OverlayButtonBrush}"
+                                                        Margin="4,0,0,0" />
+                                                <Button Content="&#xE74D;"
+                                                        ToolTip="Delete guide"
+                                                        Click="Delete_Click"
+                                                        Style="{StaticResource IconButton}"
+                                                        Background="{DynamicResource OverlayButtonBrush}"
+                                                        Margin="4,0,0,0" />
+                                            </StackPanel>
                                         </Grid>
                                     </Border>
 
@@ -146,20 +184,48 @@
                                         <TextBlock Text="{Binding Title}"
                                                    FontSize="14"
                                                    FontWeight="SemiBold"
-                                                   Foreground="{StaticResource TextPrimaryBrush}"
+                                                   Foreground="{DynamicResource TextPrimaryBrush}"
                                                    TextTrimming="CharacterEllipsis" />
                                         <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
-                                            <TextBlock Foreground="{StaticResource TextMutedBrush}" FontSize="12">
+                                            <TextBlock Foreground="{DynamicResource TextMutedBrush}" FontSize="12">
                                                 <Run Text="{Binding StepCount, Mode=OneWay}" />
                                                 <Run Text=" steps" />
                                             </TextBlock>
                                             <TextBlock Text=" · "
-                                                       Foreground="{StaticResource TextMutedBrush}"
+                                                       Foreground="{DynamicResource TextMutedBrush}"
                                                        FontSize="12" />
                                             <TextBlock Text="{Binding UpdatedAt, StringFormat={}{0:MMM d\, yyyy}}"
-                                                       Foreground="{StaticResource TextMutedBrush}"
+                                                       Foreground="{DynamicResource TextMutedBrush}"
                                                        FontSize="12" />
                                         </StackPanel>
+                                        <ItemsControl ItemsSource="{Binding Tags}" Margin="0,8,0,0">
+                                            <ItemsControl.Style>
+                                                <Style TargetType="ItemsControl">
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding HasTags}" Value="False">
+                                                            <Setter Property="Visibility" Value="Collapsed" />
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </ItemsControl.Style>
+                                            <ItemsControl.ItemsPanel>
+                                                <ItemsPanelTemplate>
+                                                    <WrapPanel />
+                                                </ItemsPanelTemplate>
+                                            </ItemsControl.ItemsPanel>
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Button Content="{Binding}"
+                                                            Click="Tag_Click"
+                                                            ToolTip="Show guides with this tag"
+                                                            FontSize="11"
+                                                            Padding="8,1"
+                                                            MinHeight="0"
+                                                            Height="22"
+                                                            Margin="0,0,6,4" />
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
                                     </StackPanel>
                                 </Grid>
                             </Border>

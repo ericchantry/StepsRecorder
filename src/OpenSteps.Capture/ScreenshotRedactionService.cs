@@ -3,6 +3,7 @@ using System.Drawing.Drawing2D;
 using System.Drawing.Imaging;
 using System.IO;
 using OpenSteps.Core.Models;
+using OpenSteps.Core.Services;
 
 namespace OpenSteps.Capture;
 
@@ -154,6 +155,44 @@ public sealed class ScreenshotRedactionService
         {
             DrawMarker(graphics, imageWidth, imageHeight, annotation, color);
         }
+        else if (annotation.Type == ScreenshotAnnotationType.Text)
+        {
+            DrawTextLabel(graphics, annotation, color);
+        }
+    }
+
+    /// <summary>A text label: the text on a rounded plate in the edit's colour, with its top-left corner at X1/Y1.</summary>
+    private static void DrawTextLabel(Graphics graphics, ScreenshotAnnotation annotation, Color color)
+    {
+        var text = annotation.Text?.Trim();
+        if (string.IsNullOrEmpty(text))
+        {
+            return;
+        }
+
+        var size = (float)Math.Max(8, annotation.X2);
+        using var font = new Font("Segoe UI", size, FontStyle.Bold, GraphicsUnit.Pixel);
+        graphics.TextRenderingHint = System.Drawing.Text.TextRenderingHint.AntiAliasGridFit;
+        var measured = graphics.MeasureString(text, font, PointF.Empty, StringFormat.GenericTypographic);
+        var bounds = ScreenshotEditing.GetBounds(annotation);
+        var plate = new RectangleF((float)bounds.X, (float)bounds.Y, Math.Max((float)bounds.Width, measured.Width + size * 0.6f), (float)bounds.Height);
+
+        var radius = size * 0.35f;
+        using var path = new GraphicsPath();
+        path.AddArc(plate.X, plate.Y, radius * 2, radius * 2, 180, 90);
+        path.AddArc(plate.Right - radius * 2, plate.Y, radius * 2, radius * 2, 270, 90);
+        path.AddArc(plate.Right - radius * 2, plate.Bottom - radius * 2, radius * 2, radius * 2, 0, 90);
+        path.AddArc(plate.X, plate.Bottom - radius * 2, radius * 2, radius * 2, 90, 90);
+        path.CloseFigure();
+
+        using var fill = new SolidBrush(color);
+        using var border = new Pen(Color.White, Math.Max(1.5f, size / 12));
+        graphics.FillPath(fill, path);
+        graphics.DrawPath(border, path);
+
+        using var textBrush = new SolidBrush(ScreenshotEditing.NeedsDarkText(annotation.Color) ? Color.FromArgb(17, 24, 39) : Color.White);
+        using var format = new StringFormat(StringFormat.GenericTypographic) { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center };
+        graphics.DrawString(text, font, textBrush, plate, format);
     }
 
     private static void DrawMarker(Graphics graphics, int imageWidth, int imageHeight, ScreenshotAnnotation annotation, Color color)
@@ -170,7 +209,7 @@ public sealed class ScreenshotRedactionService
 
         var text = string.IsNullOrWhiteSpace(annotation.Text) ? "1" : annotation.Text.Trim();
         using var font = new Font("Segoe UI", Math.Max(10f, (float)radius * 0.95f), FontStyle.Bold, GraphicsUnit.Pixel);
-        using var textBrush = new SolidBrush(Color.White);
+        using var textBrush = new SolidBrush(ScreenshotEditing.NeedsDarkText(annotation.Color) ? Color.FromArgb(17, 24, 39) : Color.White);
         using var format = new StringFormat
         {
             Alignment = StringAlignment.Center,

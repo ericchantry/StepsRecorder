@@ -21,7 +21,7 @@
     Path to an OpenSteps-<version>-win-x64.zip or to a folder containing OpenSteps.App.exe.
 
 .PARAMETER Version
-    GitHub release tag to download when no local package is found, e.g. v0.4.0. Default: latest.
+    GitHub release tag to download when no local package is found, e.g. v0.5.0. Default: latest.
 
 .PARAMETER Repository
     GitHub repository (owner/name) that publishes the releases.
@@ -45,6 +45,11 @@
     Reinstall even when the same version is already installed. Without it, re-running with the same
     version only refreshes shortcuts and the Settings > Apps entry (cheap enough for a logon script).
 
+.PARAMETER InterruptRecording
+    Upgrade even if OpenSteps is recording right now. OpenSteps is asked to stop the recording, save the guide
+    and close first. Without this switch an upgrade is postponed (exit code 2) while a recording is in progress,
+    so nobody loses work; run the script again later.
+
 .PARAMETER Quiet
     Only write to the log file, not the console (for Intune, SCCM and logon scripts).
 
@@ -52,13 +57,13 @@
     Install log location.
 
 .EXAMPLE
-    .\Install-OpenSteps.ps1 -Source \\fileserver\software\OpenSteps\OpenSteps-0.4.0-win-x64.zip -Quiet
+    .\Install-OpenSteps.ps1 -Source \\fileserver\software\OpenSteps\OpenSteps-0.5.0-win-x64.zip -Quiet
 
 .EXAMPLE
-    .\Install-OpenSteps.ps1 -Version v0.4.0 -ExpectedSha256 <hash> -Quiet
+    .\Install-OpenSteps.ps1 -Version v0.5.0 -ExpectedSha256 <hash> -Quiet
 
 .NOTES
-    Exit codes: 0 = success, 1 = failure (see the log).
+    Exit codes: 0 = success, 1 = failure (see the log), 2 = postponed because OpenSteps is recording.
 #>
 [CmdletBinding()]
 param(
@@ -71,6 +76,7 @@ param(
     [switch]$NoStartMenuShortcut,
     [switch]$Launch,
     [switch]$Force,
+    [switch]$InterruptRecording,
     [switch]$Quiet,
     [string]$LogPath = (Join-Path $env:LOCALAPPDATA 'OpenSteps\install.log')
 )
@@ -166,6 +172,18 @@ function Resolve-PackageFolder {
     return $exe.DirectoryName
 }
 
+function Test-OpenStepsRecording {
+    # OpenSteps holds this named marker for as long as a recording is in progress.
+    try {
+        $marker = $null
+        if ([System.Threading.Mutex]::TryOpenExisting('Local\OpenSteps.Recording', [ref]$marker)) {
+            $marker.Dispose()
+            return $true
+        }
+    } catch { }
+    return $false
+}
+
 function Stop-OpenSteps {
     $target = [IO.Path]::GetFullPath($InstallDir).TrimEnd('\') + '\'
     $running = @(Get-Process -Name 'OpenSteps.App' -ErrorAction SilentlyContinue | Where-Object {
@@ -173,9 +191,28 @@ function Stop-OpenSteps {
     })
     if ($running.Count -eq 0) { return }
 
-    Write-Log 'OpenSteps is running; asking it to close so it can save its session.'
-    foreach ($process in $running) { [void]$process.CloseMainWindow() }
-    $deadline = (Get-Date).AddSeconds(15)
+    if ((Test-OpenStepsRecording) -and -not $InterruptRecording) {
+        throw [System.OperationCanceledException]::new('OpenSteps is recording. The upgrade has been postponed so the recording is not interrupted; run the installer again later, or use -InterruptRecording to stop and save the recording first.')
+    }
+
+    Write-Log 'OpenSteps is running; asking it to save its work and close.'
+    # OpenSteps 0.5 and later listen for this signal in every state (recorder bar hidden, editor open, recording):
+    # they finish and save any recording, save the guide, and exit. Older versions only react to CloseMainWindow.
+    $signalled = $false
+    try {
+        $handle = $null
+        if ([System.Threading.EventWaitHandle]::TryOpenExisting('Local\OpenSteps.Shutdown', [ref]$handle)) {
+            [void]$handle.Set()
+            $handle.Dispose()
+            $signalled = $true
+        }
+    } catch {
+        Write-Log "Could not signal OpenSteps to close: $($_.Exception.Message)" 'WARN'
+    }
+    if (-not $signalled) {
+        foreach ($process in $running) { [void]$process.CloseMainWindow() }
+    }
+    $deadline = (Get-Date).AddSeconds($(if ($signalled) { 45 } else { 15 }))
     while ((Get-Date) -lt $deadline -and @($running | Where-Object { -not $_.HasExited }).Count -gt 0) {
         Start-Sleep -Milliseconds 500
         foreach ($process in $running) { $process.Refresh() }
@@ -288,6 +325,10 @@ try {
     Write-Log "$AppName $registeredVersion installed successfully."
     if ($Launch) { Start-Process -FilePath $exe -WorkingDirectory $InstallDir }
     exit 0
+}
+catch [System.OperationCanceledException] {
+    Write-Log $_.Exception.Message 'WARN'
+    exit 2
 }
 catch {
     Write-Log "Installation failed: $($_.Exception.Message)" 'ERROR'

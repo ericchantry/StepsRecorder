@@ -93,6 +93,9 @@ public partial class MainWindow
 
         if (_sessionWasEmptyBeforeRecording && Steps.Count == 0)
         {
+            // Let any autosave that is mid-write finish before the folder goes.
+            await _saveLock.WaitAsync();
+            _saveLock.Release();
             DeleteSessionFolder(GetSessionDirectory());
             ResetSession();
             Show();

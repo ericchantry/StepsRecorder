@@ -16,6 +16,9 @@ public sealed class RecordingSession
 
     public string OutputDirectory { get; set; } = string.Empty;
 
+    /// <summary>Labels for finding the guide in the library, e.g. "onboarding", "bug".</summary>
+    public List<string> Tags { get; set; } = [];
+
     public List<RecordedStep> Steps { get; set; } = [];
 
     public List<RecordingSegment> Segments { get; set; } = [];

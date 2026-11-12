@@ -17,13 +17,13 @@
         </Style>
 
         <Style x:Key="StopBarButton" TargetType="Button" BasedOn="{StaticResource BarButton}">
-            <Setter Property="Foreground" Value="{StaticResource TextInverseBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource OnRecordingTextBrush}" />
             <Setter Property="FontWeight" Value="SemiBold" />
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
                         <Border x:Name="Chrome"
-                                Background="{StaticResource RecordingBrush}"
+                                Background="{DynamicResource RecordingBrush}"
                                 CornerRadius="8"
                                 SnapsToDevicePixels="True">
                             <ContentPresenter HorizontalAlignment="Center"
@@ -33,10 +33,10 @@
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="Chrome" Property="Background" Value="#C42D3D" />
+                                <Setter TargetName="Chrome" Property="Background" Value="{DynamicResource RecordingHoverBrush}" />
                             </Trigger>
                             <Trigger Property="IsPressed" Value="True">
-                                <Setter TargetName="Chrome" Property="Background" Value="#A52532" />
+                                <Setter TargetName="Chrome" Property="Background" Value="{DynamicResource RecordingPressedBrush}" />
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -46,8 +46,8 @@
     </Window.Resources>
 
     <Border Margin="10"
-            Background="{StaticResource PanelBackgroundBrush}"
-            BorderBrush="{StaticResource BorderBrush}"
+            Background="{DynamicResource PanelBackgroundBrush}"
+            BorderBrush="{DynamicResource BorderBrush}"
             BorderThickness="1"
             CornerRadius="12"
             Padding="8,6"
@@ -61,14 +61,14 @@
             <TextBlock Text="&#xE76F;"
                        FontFamily="Segoe MDL2 Assets"
                        FontSize="12"
-                       Foreground="{StaticResource TextMutedBrush}"
+                       Foreground="{DynamicResource TextMutedBrush}"
                        VerticalAlignment="Center"
                        Cursor="SizeAll"
                        Margin="4,0,10,0" />
 
             <Ellipse x:Name="RecordingDot"
                      Width="9" Height="9"
-                     Fill="{StaticResource RecordingBrush}"
+                     Fill="{DynamicResource RecordingBrush}"
                      VerticalAlignment="Center"
                      Margin="0,0,8,0">
                 <Ellipse.Triggers>
@@ -88,7 +88,7 @@
                        Text="&#xE769;"
                        FontFamily="Segoe MDL2 Assets"
                        FontSize="11"
-                       Foreground="{StaticResource WarningBrush}"
+                       Foreground="{DynamicResource WarningBrush}"
                        VerticalAlignment="Center"
                        Margin="0,0,8,0"
                        Visibility="Collapsed" />
@@ -97,13 +97,13 @@
                        Text="Recording"
                        FontSize="12.5"
                        FontWeight="SemiBold"
-                       Foreground="{StaticResource TextPrimaryBrush}"
+                       Foreground="{DynamicResource TextPrimaryBrush}"
                        VerticalAlignment="Center"
                        MinWidth="62" />
             <TextBlock x:Name="DetailText"
                        FontSize="12.5"
                        FontFamily="Segoe UI"
-                       Foreground="{StaticResource TextSecondaryBrush}"
+                       Foreground="{DynamicResource TextSecondaryBrush}"
                        VerticalAlignment="Center"
                        MinWidth="118"
                        Margin="6,0,8,0" />

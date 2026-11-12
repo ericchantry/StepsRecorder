@@ -52,7 +52,7 @@ public partial class RecordingReviewWindow : Window
 
         var typedTextNote = session.Segments.Any(s => s.TypedTextCaptured)
             ? "Typed text is shown where it was recorded; password and other sensitive fields are always masked."
-            : "Typed characters were not recorded for this session; only key counts, keys and shortcuts are shown.";
+            : "Typed characters were not recorded for this session.";
         TimelineFooter.Text = $"{session.InputEvents.Count} input events. {typedTextNote} Click a row to jump to that moment.";
 
         _positionTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(150) };

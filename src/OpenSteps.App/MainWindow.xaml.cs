@@ -75,6 +75,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         {
             PositionControllerBottomCenter();
             await LoadSettingsAsync();
+            await OfferRecoveryAsync();
         };
         _typingTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(850) };
         _typingTimer.Tick += async (_, _) => await FinalizePendingTypingAsync();
@@ -130,6 +131,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             _captureMonitorDeviceName = _settings.CaptureMonitorDeviceName;
             RefreshCaptureOptions();
             RefreshPolicy();
+            ThemeManager.Apply(_settings.Theme);
+            RaiseThemeChanged();
         }
         finally
         {
@@ -224,10 +227,10 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             _mouseHook.PointerActivityCaptured += MouseHook_PointerActivityCaptured;
             _mouseHook.Start();
 
-            _keyboardHook = new GlobalKeyboardHook(ShouldIgnoreKeyboard, () => CaptureTypedText && _screenshotCaptureTargetStep is null);
-            _keyboardHook.KeyboardInputCaptured += KeyboardHook_KeyboardInputCaptured;
-            _keyboardHook.Start();
+            // The keyboard is only listened to when keyboard recording is on (and not blocked by IT policy).
+            SyncKeyboardHook();
 
+            BeginRecordingSafetyNet();
             ShowRecordingTray();
             Hide();
         }
@@ -1016,7 +1019,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     internal Task EditScreenshotFromEditorAsync(object sender)
     {
         return (sender as FrameworkElement)?.DataContext is RecordedStep step
-            ? EditStepAsync(step, StepEditTool.Box)
+            ? EditStepAsync(step, step.Annotations.Count > 0 || step.Redactions.Count > 0 ? StepEditTool.Select : StepEditTool.Box)
             : Task.CompletedTask;
     }
 
@@ -1248,6 +1251,12 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
     private async void MainWindow_Closing(object? sender, CancelEventArgs e)
     {
+        if (!_crashed)
+        {
+            // A normal close ends any recording cleanly; after a crash the marker stays so the guide is offered back.
+            EndRecordingSafetyNet();
+        }
+
         StopHooks();
         StopVideoForShutdown();
         _reviewWindow?.Close();
@@ -1495,7 +1504,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         _trayPauseItem.Click += (_, _) => TrayTogglePause();
         menu.Items.Add(_trayPauseItem);
 
-        _trayTypedTextItem = new WinForms.ToolStripMenuItem("Record typed text")
+        _trayTypedTextItem = new WinForms.ToolStripMenuItem("Record keyboard")
         {
             Checked = CaptureTypedText,
             Enabled = IsTypedTextOptionEnabled
@@ -1540,6 +1549,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
     private void HideRecordingTray()
     {
+        EndRecordingSafetyNet();
         HideRecordingBar();
         HideCaptureRegionOutline();
         if (_trayIcon is null)
@@ -1671,18 +1681,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             _mouseHook = null;
         }
 
-        try
-        {
-            if (_keyboardHook is not null)
-            {
-                _keyboardHook.KeyboardInputCaptured -= KeyboardHook_KeyboardInputCaptured;
-                _keyboardHook.Dispose();
-            }
-        }
-        finally
-        {
-            _keyboardHook = null;
-        }
+        RemoveKeyboardHook();
     }
 
     private bool ContainsMainWindowPoint(int x, int y)
