@@ -46,6 +46,42 @@ public partial class SessionEditorWindow : Window
         var hasSteps = _controller.Steps.Count > 0;
         EmptyState.Visibility = hasSteps ? Visibility.Collapsed : Visibility.Visible;
         StepsList.Visibility = hasSteps ? Visibility.Visible : Visibility.Collapsed;
+        UpdateSelectionBar();
+    }
+
+    private void UpdateSelectionBar()
+    {
+        var count = _controller.SelectedSteps.Count;
+        SelectionBar.Visibility = count > 0 ? Visibility.Visible : Visibility.Collapsed;
+        SelectionText.Text = count == 1 ? "1 step selected" : $"{count} steps selected";
+        MergeSelectedButton.IsEnabled = count >= 2;
+    }
+
+    private void StepSelection_Click(object sender, RoutedEventArgs e)
+    {
+        UpdateSelectionBar();
+    }
+
+    private async void MergeSelected_Click(object sender, RoutedEventArgs e)
+    {
+        await _controller.MergeSelectedStepsFromEditorAsync();
+        UpdateSelectionBar();
+    }
+
+    private async void DeleteSelected_Click(object sender, RoutedEventArgs e)
+    {
+        await _controller.DeleteSelectedStepsFromEditorAsync();
+        UpdateSelectionBar();
+    }
+
+    private void ClearSelection_Click(object sender, RoutedEventArgs e)
+    {
+        _controller.ClearStepSelectionFromEditor();
+    }
+
+    private async void DuplicateStep_Click(object sender, RoutedEventArgs e)
+    {
+        await _controller.DuplicateStepFromEditorAsync(sender);
     }
 
     private async void BackToRecorder_Click(object sender, RoutedEventArgs e)

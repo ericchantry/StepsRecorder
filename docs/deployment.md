@@ -37,13 +37,13 @@ Silent, from a file share (the script and zip can live anywhere the user can rea
 
 ```powershell
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File \\fileserver\software\OpenSteps\Install-OpenSteps.ps1 `
-    -Source \\fileserver\software\OpenSteps\OpenSteps-0.4.0-win-x64.zip -Quiet
+    -Source \\fileserver\software\OpenSteps\OpenSteps-0.5.0-win-x64.zip -Quiet
 ```
 
 Silent, straight from GitHub with a pinned version and hash:
 
 ```powershell
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\Install-OpenSteps.ps1 -Version v0.4.0 -ExpectedSha256 <hash> -Quiet
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\Install-OpenSteps.ps1 -Version v0.5.0 -ExpectedSha256 <hash> -Quiet
 ```
 
 | Parameter | Purpose |
@@ -58,11 +58,17 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\Install-OpenSteps.ps1 
 | `-Force` | Reinstall even if the same version is installed. |
 | `-Launch` | Start OpenSteps when done. |
 | `-Quiet` | Log only, no console output. |
+| `-InterruptRecording` | Upgrade even while a user is recording: OpenSteps is asked to stop and save the recording, then close. Without it, the upgrade is postponed (exit code `2`). |
 
-Exit codes: `0` success, `1` failure (details in the log). The script is idempotent: running it
-again with the same version only refreshes the shortcut and Apps entry, so it is cheap enough for
-a logon script. Upgrades close a running OpenSteps (it saves its session on close), swap the
-install folder atomically and keep user recordings.
+Exit codes: `0` success, `1` failure (details in the log), `2` postponed because the user is
+recording right now (run it again later; with Intune, add `2` as a "Retry" return code). The script
+is idempotent: running it again with the same version only refreshes the shortcut and Apps entry,
+so it is cheap enough for a logon script.
+
+Upgrades ask a running OpenSteps to save its work and close, whichever window it is showing, and
+wait up to 45 seconds for it to finish. They never interrupt a recording unless you pass
+`-InterruptRecording`. Then they swap the install folder atomically and keep user recordings.
+(Versions before 0.5 are asked to close through their main window, as before.)
 
 ### Microsoft Intune (Win32 app)
 
@@ -84,7 +90,7 @@ commands and detection rule, with **Installation behavior: Install for user**.
 User Configuration > Policies > Windows Settings > Scripts > Logon:
 
 ```text
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File \\fileserver\software\OpenSteps\Install-OpenSteps.ps1 -Source \\fileserver\software\OpenSteps\OpenSteps-0.4.0-win-x64.zip -Quiet
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File \\fileserver\software\OpenSteps\Install-OpenSteps.ps1 -Source \\fileserver\software\OpenSteps\OpenSteps-0.5.0-win-x64.zip -Quiet
 ```
 
 Replace the zip on the share to roll out a new version.
@@ -103,7 +109,7 @@ write to either key, so users cannot override them.
 
 | Value | `1` means |
 |---|---|
-| `DisableTypedTextCapture` | Never record the characters users type. Key names, shortcuts and key counts are still recorded. The "Typed text" option is greyed out. |
+| `DisableTypedTextCapture` | Never record the keyboard. OpenSteps does not install its keyboard hook at all, so typed text, key presses and shortcuts are all left out. The "Keyboard" option is greyed out. |
 | `DisableVideoRecording` | Never record session video. Screenshots and the input timeline still work. |
 
 ```reg
@@ -122,8 +128,11 @@ paused):
 - Screenshots for each step, with click highlights.
 - A video of all monitors (if enabled), with the cursor and a ring on each click.
 - A timeline of clicks, scrolls, drags, keys and shortcuts with timestamps and the window they went to.
-- Typed characters (if enabled). Fields that UI Automation reports as password fields, or whose
-  name looks like a secret (PIN, CVV, card number, security code, …), are always masked and never stored.
+- Typed characters, keys and shortcuts (if **Keyboard** is on). Fields that UI Automation reports as
+  password fields, or whose name looks like a secret (PIN, CVV, card number, security code, …), are
+  always masked and never stored. The keyboard hook exists only while a recording is running with
+  **Keyboard** on; it is removed when the recording is paused or stopped, when the user switches
+  **Keyboard** off, and never installed when the policy above is set.
 - System details for bug reports: Windows version, displays and scaling, language, keyboard layout,
   time zone. Never user names, computer names or network details.
 
@@ -135,8 +144,8 @@ if your organisation does not want it.
 
 ## Things to plan for
 
-- **Security software.** OpenSteps uses a global keyboard and mouse hook and records the screen,
-  which is exactly what keyloggers do. Unsigned builds are likely to be flagged by EDR/antivirus.
+- **Security software.** OpenSteps uses a global mouse hook, a global keyboard hook (only while
+  recording with **Keyboard** on) and records the screen, which is exactly what keyloggers do. Unsigned builds are likely to be flagged by EDR/antivirus.
   Code-sign `OpenSteps.App.exe` (and the scripts) with your organisation's certificate, or allowlist
   the install path / file hash.
 - **AppLocker / WDAC.** Many organisations block executables under `%LOCALAPPDATA%`. Add a publisher

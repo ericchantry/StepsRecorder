@@ -57,6 +57,7 @@ public partial class MainWindow
                 _currentSegment.TypedTextCaptured = true;
             }
 
+            SyncKeyboardHook();
             RaiseRecordingOptionsChanged();
             if (!_loadingSettings)
             {
@@ -96,8 +97,8 @@ public partial class MainWindow
         : "Record a video of the whole session (all monitors). Every click and keystroke links to its moment in the video.";
 
     public string TypedTextOptionToolTip => _policy.DisableTypedTextCapture
-        ? "Recording typed text has been turned off by your IT department. Key names and shortcuts are still recorded."
-        : "Record the characters you type. Password and other sensitive fields are always masked, and covered in screenshots and video. Can be switched off from the tray icon while recording.";
+        ? "Keyboard recording has been turned off by your IT department. OpenSteps does not listen to the keyboard at all."
+        : "Record what you do on the keyboard: typed text, shortcuts and key presses. Password and other sensitive fields are always masked, and covered in screenshots and video.\nWhen this is off, OpenSteps does not listen to the keyboard at all. Can be switched from the tray icon while recording.";
 
     private bool IsTimelineActive => _isRecording && !_isPaused && _currentSegment is not null && _screenshotCaptureTargetStep is null;
 
@@ -273,6 +274,8 @@ public partial class MainWindow
 
     private void SyncClockWithPause()
     {
+        // No keyboard listening while paused.
+        SyncKeyboardHook();
         if (_isPaused)
         {
             _clock.Pause();

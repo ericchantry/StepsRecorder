@@ -2,6 +2,35 @@
 
 All notable changes to OpenSteps. Versions follow [semantic versioning](https://semver.org/); each release's zip is on the [Releases](https://github.com/ericchantry/StepsRecorder/releases) page.
 
+## [0.5.0] - 2026-11-12
+
+### Changed
+- **The keyboard hook is installed only when it is needed.** The **Keyboard** option (renamed from *Typed text*) now decides whether OpenSteps listens to the keyboard at all.
+  - The hook exists only while a recording is running with **Keyboard** on.
+  - It is removed when you pause, stop, switch **Keyboard** off, or when IT sets the `DisableTypedTextCapture` policy.
+  - With **Keyboard** off, shortcuts and key presses are no longer recorded either. Before, only the typed characters were left out.
+- The muted text colour is darker in the light theme so small labels are easier to read.
+
+### Added
+- **Step editor**
+  - **Select** tool: click an edit to select it, drag to move it, drag a corner (or an arrow's end) to resize it, press Delete to remove it. Blur areas can be moved and resized too.
+  - **Text** tool: click to add a text label. Double-click a label with Select to change its words.
+  - **Colours**: red, orange, yellow, green, blue, purple and black for boxes, arrows, callouts and text. Choosing a colour with an edit selected recolours it.
+- **Step list**
+  - Tick boxes on each step, with a bar to **delete** the ticked steps or **merge** them into the first one (it keeps its screenshot and title and gains the others' text).
+  - **Duplicate** a step. The copy has its own images, so editing one never changes the other.
+- **Crash recovery.** While recording, the guide is saved every five seconds. If OpenSteps closes unexpectedly, the next start offers to open what was saved. A crash log is written to `%LOCALAPPDATA%\OpenSteps\logs`.
+- **One running copy.** Starting OpenSteps a second time brings the running copy to the front.
+- **Themes.** Dark and Windows high-contrast themes, following Windows by default, with a button on the recorder bar to choose Match Windows, Light or Dark. Title bars follow the theme.
+- **Accessibility.** Every button and field has a name for screen readers; icon-only buttons take it from their tooltip.
+- **Guide library.** Search by title or tag (`#tag` matches tags only), add and edit tags, rename a guide from its card, and click a tag to filter by it.
+- **Installer**
+  - Upgrades ask OpenSteps to save and close in any state, not only when its main bar is showing.
+  - An upgrade is postponed (exit code `2`) while a recording is in progress. `-InterruptRecording` stops and saves the recording first instead.
+
+### Notes
+- Splitting one step into two is not included; duplicate the step and edit each copy.
+
 ## [0.4.0] - 2026-11-04
 
 ### Added
@@ -64,7 +93,8 @@ All notable changes to OpenSteps. Versions follow [semantic versioning](https://
   - Policies to turn typed-text capture or video off.
   - See [docs/deployment.md](docs/deployment.md).
 
-[0.4.0]: https://github.com/ericchantry/StepsRecorder/releases/tag/v0.4.0
+[0.5.0]: https://github.com/ericchantry/StepsRecorder/compare/382feb1...main
+[0.4.0]: https://github.com/ericchantry/StepsRecorder/commit/382feb1
 [0.3.0]: https://github.com/ericchantry/StepsRecorder/compare/729dc32...7bfb116
 [0.2.1]: https://github.com/ericchantry/StepsRecorder/compare/729dc32...7634a85
 [0.2.0]: https://github.com/ericchantry/StepsRecorder/commit/729dc32

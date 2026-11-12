@@ -43,6 +43,10 @@ public sealed class RecordedStep
     /// </summary>
     public int ScreenshotEditFormat { get; set; }
 
+    /// <summary>Ticked in the step list for a bulk action (delete or merge). Not saved.</summary>
+    [JsonIgnore]
+    public bool IsSelected { get; set; }
+
     public bool HasRedactions => Redactions.Count > 0;
 
     /// <summary>True when the screenshot is shown with any edits (blur, annotations or crop).</summary>

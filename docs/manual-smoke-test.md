@@ -181,3 +181,46 @@ Use this checklist before demoing OpenSteps.
 2. Confirm titles read like `Click "Save"`, `Open the "File" menu`, `Choose "Save As"`, `Open the "Home" tab`, `Select "Documents"`, `Click the "Remember me" checkbox`, `Click in "Search"`, `Type "invoice 1042" in "Search"`, `Enter the password`, `Press Ctrl+C to copy`, `Press Ctrl+Shift+P`, `Press Alt+Tab to switch windows`, and `Click in Excel`.
 3. Confirm long element names are shortened with "…" and no title contains a keyboard-shortcut hint such as "(Ctrl+S)".
 
+
+## Keyboard Recording
+
+1. Start a recording with **Keyboard** ticked, type into Notepad, stop, and confirm the typed text and shortcuts appear on the timeline.
+2. Untick **Keyboard**, record again and type. Confirm nothing typed appears: no characters, no key presses and no shortcuts.
+3. While recording with **Keyboard** on, press Pause and type. Confirm nothing typed is recorded for that stretch, then Resume and confirm typing is recorded again.
+4. Set the `DisableTypedTextCapture` policy, start OpenSteps and confirm the **Keyboard** box is greyed out and nothing typed is recorded.
+
+## Step Editor: Select, Text And Colours
+
+1. Open a step with a box, an arrow, a callout and a blur. Confirm the editor opens on the **Select** tool.
+2. Click the box. Confirm a dashed outline with four square handles. Drag the middle to move it, then a corner to resize it.
+3. Drag one end of the arrow; confirm only that end moves. Move the callout and the blur the same way.
+4. With the box selected, click the purple swatch and confirm the box turns purple. Click a swatch with nothing selected, draw a new box, and confirm it uses that colour.
+5. Press Delete with an edit selected; confirm it is removed and callouts renumber. Press Escape to deselect.
+6. Choose **Text**, click on the screenshot, type a label and confirm it appears. Double-click it with Select to change the words. Try it in yellow and confirm the text is dark enough to read.
+7. Undo and redo the whole sequence; confirm each move and resize is one step.
+8. Save, reopen the step and confirm every edit is where you left it.
+
+## Step List: Select, Merge, Duplicate
+
+1. Tick two steps. Confirm the bar appears with the count, and **Merge into one step** is enabled only with two or more ticked.
+2. Click **Merge**; confirm the first step keeps its screenshot and title and gains the other's title and description, and the rest renumber.
+3. Click **Duplicate** on a step. Confirm the copy appears below it. Edit the copy's screenshot and confirm the original is untouched.
+4. Tick several steps and click **Delete**; confirm it asks first and removes them all.
+
+## Crash Recovery And Single Instance
+
+1. Start recording, capture a few steps, then end the process from Task Manager.
+2. Start OpenSteps again; confirm it offers the recovered guide and the steps are there. If a video run was interrupted, confirm the review window explains the video could not be finished.
+3. Start OpenSteps while it is already running; confirm the running window comes to the front and no second copy appears.
+
+## Themes And Screen Readers
+
+1. Click the theme button on the recorder bar through Match Windows, Light and Dark. Confirm every open window changes at once, including title bars, and the choice survives a restart.
+2. Set Windows to a high-contrast theme; confirm OpenSteps follows it while it is on, whatever the button says.
+3. Turn on Narrator and tab through the recorder bar, session editor and step editor. Confirm each button is announced with a useful name rather than a symbol.
+
+## Installer During A Recording
+
+1. Start a recording. Run `Install-OpenSteps.ps1` and confirm it exits with code `2` and logs that the upgrade was postponed.
+2. Run it with `-InterruptRecording` and confirm OpenSteps stops and saves the recording, closes, and the upgrade completes with the guide intact.
+3. With OpenSteps open on the session editor (recorder bar hidden), run the installer and confirm it closes cleanly without being force-stopped.

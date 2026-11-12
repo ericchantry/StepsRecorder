@@ -13,4 +13,8 @@ public sealed class SessionSummary
     public int StepCount { get; set; }
 
     public string? ThumbnailPath { get; set; }
+
+    public List<string> Tags { get; set; } = [];
+
+    public bool HasTags => Tags.Count > 0;
 }
