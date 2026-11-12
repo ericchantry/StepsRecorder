@@ -46,6 +46,60 @@ public partial class SessionEditorWindow : Window
         var hasSteps = _controller.Steps.Count > 0;
         EmptyState.Visibility = hasSteps ? Visibility.Collapsed : Visibility.Visible;
         StepsList.Visibility = hasSteps ? Visibility.Visible : Visibility.Collapsed;
+        UpdateSelectionPanel();
+    }
+
+    private void UpdateSelectionPanel()
+    {
+        var count = _controller.SelectedStepCount;
+        SelectionPanel.Visibility = count > 0 ? Visibility.Visible : Visibility.Collapsed;
+        DeleteSelectedButton.Content = count == 1 ? "Delete 1 selected step" : $"Delete {count} selected steps";
+    }
+
+    private void StepSelection_Click(object sender, RoutedEventArgs e)
+    {
+        UpdateSelectionPanel();
+    }
+
+    private void DeleteSelected_Click(object sender, RoutedEventArgs e)
+    {
+        _controller.DeleteSelectedStepsFromEditor();
+    }
+
+    private void SelectAllSteps_Click(object sender, RoutedEventArgs e)
+    {
+        _controller.SetAllStepsSelectedFromEditor(true);
+    }
+
+    private void ClearStepSelection_Click(object sender, RoutedEventArgs e)
+    {
+        _controller.SetAllStepsSelectedFromEditor(false);
+    }
+
+    private void MoreStepActions_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is System.Windows.Controls.Button { ContextMenu: { } menu } button)
+        {
+            menu.DataContext = button.DataContext;
+            menu.PlacementTarget = button;
+            menu.Placement = System.Windows.Controls.Primitives.PlacementMode.Bottom;
+            menu.IsOpen = true;
+        }
+    }
+
+    private void DuplicateStep_Click(object sender, RoutedEventArgs e)
+    {
+        _controller.DuplicateStepFromEditor(sender);
+    }
+
+    private void MergeStep_Click(object sender, RoutedEventArgs e)
+    {
+        _controller.MergeStepWithNextFromEditor(sender);
+    }
+
+    private void SplitStep_Click(object sender, RoutedEventArgs e)
+    {
+        _controller.SplitStepFromEditor(sender);
     }
 
     private async void BackToRecorder_Click(object sender, RoutedEventArgs e)

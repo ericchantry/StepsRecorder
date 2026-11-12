@@ -37,6 +37,8 @@ public sealed record StepEditRequest(
 
 public enum StepEditTool
 {
+    Select,
+    Text,
     Crop,
     Box,
     Arrow,
@@ -74,6 +76,14 @@ public partial class StepEditWindow : Window
     private bool _saved;
     private bool _textChanged;
 
+    private string _color = AnnotationRed;
+    private Guid? _selectedAnnotationId;
+    private int _selectedRedaction = -1;
+    private EditDrag? _editDrag;
+    private WpfTextBox? _textEditor;
+    private Guid? _textEditorTarget;
+    private (double X, double Y) _textEditorPoint;
+
     public StepEditWindow(StepEditRequest request)
     {
         InitializeComponent();
@@ -100,6 +110,7 @@ public partial class StepEditWindow : Window
         LegacyNotice.Visibility = request.HasLegacyEdits ? Visibility.Visible : Visibility.Collapsed;
         _textChanged = false;
 
+        UpdateSwatches();
         SelectTool(request.InitialTool);
         Loaded += (_, _) => RenderEdits();
         SizeChanged += (_, _) => RenderEdits();
@@ -132,7 +143,15 @@ public partial class StepEditWindow : Window
 
     private void SelectTool(StepEditTool tool)
     {
+        CommitTextEditor();
         _tool = tool;
+        OverlayCanvas.Cursor = tool == StepEditTool.Select ? System.Windows.Input.Cursors.Arrow : tool == StepEditTool.Text ? System.Windows.Input.Cursors.IBeam : System.Windows.Input.Cursors.Cross;
+        if (tool != StepEditTool.Select && HasSelection)
+        {
+            ClearSelection();
+            RenderEdits();
+        }
+
         foreach (var (button, buttonTool) in ToolButtons())
         {
             var selected = buttonTool == tool;
@@ -143,6 +162,8 @@ public partial class StepEditWindow : Window
 
         ToolHintText.Text = tool switch
         {
+            StepEditTool.Select => "Click an edit to select it. Drag to move, drag a corner to resize, pick a colour, or press Delete.",
+            StepEditTool.Text => "Click where the label should go, type it, and press Enter.",
             StepEditTool.Crop => "Drag over the part of the screenshot to keep. Drag again to change it.",
             StepEditTool.Box => "Drag to draw a box.",
             StepEditTool.Arrow => "Drag from where the arrow starts to what it points at.",
@@ -156,6 +177,8 @@ public partial class StepEditWindow : Window
 
     private IEnumerable<(WpfButton Button, StepEditTool Tool)> ToolButtons()
     {
+        yield return (SelectToolButton, StepEditTool.Select);
+        yield return (TextToolButton, StepEditTool.Text);
         yield return (CropToolButton, StepEditTool.Crop);
         yield return (BoxToolButton, StepEditTool.Box);
         yield return (ArrowToolButton, StepEditTool.Arrow);
@@ -170,6 +193,25 @@ public partial class StepEditWindow : Window
     private void OverlayCanvas_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
         var start = e.GetPosition(OverlayCanvas);
+        var wasEditingText = _textEditor is not null;
+        CommitTextEditor();
+        if (_tool == StepEditTool.Select)
+        {
+            BeginSelectDrag(start, e.ClickCount);
+            return;
+        }
+
+        if (_tool == StepEditTool.Text)
+        {
+            // A click while a label is being typed just finishes that label.
+            if (!wasEditingText && ToImagePoint(start) is { } textPoint)
+            {
+                BeginTextEditor(textPoint, null);
+            }
+
+            return;
+        }
+
         if (_tool == StepEditTool.Callout)
         {
             AddCallout(start);
@@ -184,6 +226,12 @@ public partial class StepEditWindow : Window
 
     private void OverlayCanvas_MouseMove(object sender, WpfMouseEventArgs e)
     {
+        if (_editDrag is not null)
+        {
+            ContinueSelectDrag(e.GetPosition(OverlayCanvas));
+            return;
+        }
+
         if (_dragStart is { } start && _previewShape is not null)
         {
             PositionPreviewShape(_previewShape, start, e.GetPosition(OverlayCanvas));
@@ -192,6 +240,12 @@ public partial class StepEditWindow : Window
 
     private void OverlayCanvas_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
     {
+        if (_editDrag is not null)
+        {
+            EndSelectDrag();
+            return;
+        }
+
         if (_dragStart is not { } start)
         {
             return;
@@ -211,6 +265,8 @@ public partial class StepEditWindow : Window
             return;
         }
 
+        CommitTextEditor();
+        ClearSelection();
         var tolerance = 8 / Math.Max(0.01, GetImageScale());
         var annotation = ScreenshotEditing.HitTestAnnotation(_annotations, point.X, point.Y, tolerance);
         if (annotation >= 0)
@@ -262,7 +318,7 @@ public partial class StepEditWindow : Window
                 Y1 = from.Y,
                 X2 = to.X,
                 Y2 = to.Y,
-                Color = AnnotationRed,
+                Color = _color,
                 StrokeThickness = _stroke
             }));
             return;
@@ -300,7 +356,7 @@ public partial class StepEditWindow : Window
                     Y1 = region.Y,
                     X2 = region.X + region.Width,
                     Y2 = region.Y + region.Height,
-                    Color = highlight ? HighlightYellow : AnnotationRed,
+                    Color = highlight ? HighlightYellow : _color,
                     Opacity = highlight ? 0.35 : 1,
                     StrokeThickness = _stroke
                 }));
@@ -323,9 +379,327 @@ public partial class StepEditWindow : Window
             X2 = _calloutRadius,
             Y2 = _calloutRadius,
             Text = ScreenshotEditing.NextCalloutNumber(_annotations).ToString(),
-            Color = AnnotationRed,
+            Color = _color,
             StrokeThickness = _stroke
         }));
+    }
+
+    // ---- Select: move, resize, recolour, delete ----------------------------------------------------------------
+
+    private bool HasSelection => _selectedAnnotationId is not null || _selectedRedaction >= 0;
+
+    private ScreenshotAnnotation? SelectedAnnotation => _selectedAnnotationId is { } id ? _annotations.FirstOrDefault(a => a.Id == id) : null;
+
+    private void ClearSelection()
+    {
+        _selectedAnnotationId = null;
+        _selectedRedaction = -1;
+    }
+
+    private void BeginSelectDrag(WpfPoint display, int clickCount)
+    {
+        var point = ToImagePointUnclamped(display);
+        var tolerance = 9 / Math.Max(0.01, GetImageScale());
+
+        // The corners of what is already selected win over anything underneath them.
+        if (SelectedAnnotation is { } selected && ScreenshotEditing.HitTestHandle(selected, point.X, point.Y, tolerance) is var handle and not EditHandle.None)
+        {
+            StartEditDrag(handle, point);
+            return;
+        }
+
+        if (_selectedRedaction >= 0 && _selectedRedaction < _redactions.Count
+            && ScreenshotEditing.HitTestRegionHandle(_redactions[_selectedRedaction], point.X, point.Y, tolerance) is var regionHandle and not EditHandle.None)
+        {
+            StartEditDrag(regionHandle, point);
+            return;
+        }
+
+        ClearSelection();
+        var annotationIndex = ScreenshotEditing.HitTestAnnotation(_annotations, point.X, point.Y, tolerance);
+        if (annotationIndex >= 0)
+        {
+            var annotation = _annotations[annotationIndex];
+            _selectedAnnotationId = annotation.Id;
+            if (clickCount >= 2 && annotation.Type == ScreenshotAnnotationType.Text)
+            {
+                RenderEdits();
+                BeginTextEditor((annotation.X1, annotation.Y1), annotation);
+                return;
+            }
+
+            StartEditDrag(EditHandle.None, point);
+            return;
+        }
+
+        var redactionIndex = ScreenshotEditing.HitTestRedaction(_redactions, point.X, point.Y);
+        if (redactionIndex >= 0)
+        {
+            _selectedRedaction = redactionIndex;
+            StartEditDrag(EditHandle.None, point);
+            return;
+        }
+
+        RenderEdits();
+    }
+
+    private void StartEditDrag(EditHandle handle, (double X, double Y) point)
+    {
+        _editDrag = new EditDrag(
+            handle,
+            point,
+            Snapshot(),
+            SelectedAnnotation is { } annotation ? ScreenshotEditing.Clone(annotation) : null,
+            _selectedRedaction >= 0 ? _redactions[_selectedRedaction] : null);
+        OverlayCanvas.CaptureMouse();
+        RenderEdits();
+    }
+
+    private void ContinueSelectDrag(WpfPoint display)
+    {
+        if (_editDrag is not { } drag)
+        {
+            return;
+        }
+
+        var point = ToImagePointUnclamped(display);
+        var dx = point.X - drag.Start.X;
+        var dy = point.Y - drag.Start.Y;
+        if (!drag.Changed)
+        {
+            // Ignore the tiny movement of an ordinary click.
+            if (Math.Abs(dx) * GetImageScale() < 2 && Math.Abs(dy) * GetImageScale() < 2)
+            {
+                return;
+            }
+
+            _undo.Push(drag.Before);
+            _redo.Clear();
+            ScreenshotChanged = true;
+            _editDrag = drag = drag with { Changed = true };
+        }
+
+        if (drag.OriginAnnotation is { } origin && SelectedAnnotation is { } annotation)
+        {
+            (annotation.X1, annotation.Y1, annotation.X2, annotation.Y2) = (origin.X1, origin.Y1, origin.X2, origin.Y2);
+            if (drag.Handle == EditHandle.None)
+            {
+                ScreenshotEditing.Move(annotation, dx, dy, _imageWidth, _imageHeight);
+            }
+            else
+            {
+                ScreenshotEditing.Resize(annotation, drag.Handle, point.X, point.Y, _imageWidth, _imageHeight);
+            }
+        }
+        else if (drag.OriginRegion is { } region && _selectedRedaction >= 0 && _selectedRedaction < _redactions.Count)
+        {
+            _redactions[_selectedRedaction] = drag.Handle == EditHandle.None
+                ? ScreenshotEditing.MoveRegion(region, (int)Math.Round(dx), (int)Math.Round(dy), _imageWidth, _imageHeight)
+                : ScreenshotEditing.ResizeRegion(region, drag.Handle, (int)Math.Round(point.X), (int)Math.Round(point.Y), _imageWidth, _imageHeight);
+        }
+
+        RenderEdits();
+    }
+
+    private void EndSelectDrag()
+    {
+        var drag = _editDrag;
+        _editDrag = null;
+        OverlayCanvas.ReleaseMouseCapture();
+        if (drag is { Changed: true } && SelectedAnnotation is { Type: ScreenshotAnnotationType.Text } label)
+        {
+            FitLabelWidth(label);
+        }
+
+        RenderEdits();
+    }
+
+    private void DeleteSelection()
+    {
+        if (SelectedAnnotation is { } annotation)
+        {
+            ClearSelection();
+            Change(() =>
+            {
+                _annotations.Remove(annotation);
+                if (ScreenshotEditing.IsNumberedCallout(annotation))
+                {
+                    ScreenshotEditing.RenumberCallouts(_annotations);
+                }
+            });
+        }
+        else if (_selectedRedaction >= 0 && _selectedRedaction < _redactions.Count)
+        {
+            var index = _selectedRedaction;
+            ClearSelection();
+            Change(() => _redactions.RemoveAt(index));
+        }
+    }
+
+    private void NudgeSelection(int dx, int dy)
+    {
+        if (SelectedAnnotation is { } annotation)
+        {
+            Change(() => ScreenshotEditing.Move(annotation, dx, dy, _imageWidth, _imageHeight));
+        }
+        else if (_selectedRedaction >= 0 && _selectedRedaction < _redactions.Count)
+        {
+            var index = _selectedRedaction;
+            Change(() => _redactions[index] = ScreenshotEditing.MoveRegion(_redactions[index], dx, dy, _imageWidth, _imageHeight));
+        }
+    }
+
+    private void Color_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not FrameworkElement { Tag: string color })
+        {
+            return;
+        }
+
+        _color = color;
+        UpdateSwatches();
+        if (SelectedAnnotation is { } annotation && !string.Equals(annotation.Color, color, StringComparison.OrdinalIgnoreCase))
+        {
+            Change(() => annotation.Color = color);
+        }
+    }
+
+    private void UpdateSwatches()
+    {
+        foreach (var swatch in ColorPanel.Children.OfType<WpfButton>())
+        {
+            swatch.BorderBrush = string.Equals(swatch.Tag as string, _color, StringComparison.OrdinalIgnoreCase)
+                ? (WpfBrush)FindResource("TextPrimaryBrush")
+                : WpfBrushes.Transparent;
+        }
+    }
+
+    // ---- Text labels -------------------------------------------------------------------------------------------
+
+    /// <summary>Shows a text box over the screenshot for a new label, or to change <paramref name="existing"/>.</summary>
+    private void BeginTextEditor((double X, double Y) imagePoint, ScreenshotAnnotation? existing)
+    {
+        CommitTextEditor();
+        var height = existing is null ? ScreenshotEditing.TextHeightFor(_imageWidth, _imageHeight) : Math.Abs(existing.Y2 - existing.Y1);
+        var display = ToDisplayPoint(imagePoint.X, imagePoint.Y);
+        var editor = new WpfTextBox
+        {
+            Text = existing?.Text ?? string.Empty,
+            MinWidth = 140,
+            MaxLength = 80,
+            FontWeight = FontWeights.SemiBold,
+            FontSize = Math.Clamp(ScreenshotEditing.TextFontSizeFor(height) * GetImageScale(), 12, 28),
+            HorizontalAlignment = System.Windows.HorizontalAlignment.Left,
+            VerticalAlignment = System.Windows.VerticalAlignment.Top,
+            Margin = new Thickness(Math.Max(0, display.X), Math.Max(0, display.Y), 0, 0),
+            ToolTip = "Type the label, then press Enter. Esc cancels."
+        };
+        System.Windows.Automation.AutomationProperties.SetName(editor, "Label text");
+        editor.KeyDown += (_, e) =>
+        {
+            if (e.Key == Key.Enter)
+            {
+                CommitTextEditor();
+                e.Handled = true;
+            }
+            else if (e.Key == Key.Escape)
+            {
+                CancelTextEditor();
+                e.Handled = true;
+            }
+        };
+        editor.LostKeyboardFocus += (_, _) => CommitTextEditor();
+
+        _textEditor = editor;
+        _textEditorTarget = existing?.Id;
+        _textEditorPoint = imagePoint;
+        ImageHost.Children.Add(editor);
+        editor.Focus();
+        editor.SelectAll();
+    }
+
+    private void CancelTextEditor()
+    {
+        if (_textEditor is { } editor)
+        {
+            _textEditor = null;
+            ImageHost.Children.Remove(editor);
+        }
+    }
+
+    private void CommitTextEditor()
+    {
+        if (_textEditor is not { } editor)
+        {
+            return;
+        }
+
+        // Clear first: removing the box moves focus, which calls back into here.
+        _textEditor = null;
+        var text = editor.Text.Trim();
+        ImageHost.Children.Remove(editor);
+
+        var existing = _textEditorTarget is { } id ? _annotations.FirstOrDefault(a => a.Id == id) : null;
+        if (existing is not null)
+        {
+            if (text.Length == 0)
+            {
+                ClearSelection();
+                Change(() => _annotations.Remove(existing));
+            }
+            else if (text != existing.Text)
+            {
+                Change(() =>
+                {
+                    existing.Text = text;
+                    FitLabelWidth(existing);
+                });
+            }
+
+            return;
+        }
+
+        if (text.Length == 0)
+        {
+            return;
+        }
+
+        var height = ScreenshotEditing.TextHeightFor(_imageWidth, _imageHeight);
+        var label = new ScreenshotAnnotation
+        {
+            Type = ScreenshotAnnotationType.Text,
+            X1 = _textEditorPoint.X,
+            Y1 = _textEditorPoint.Y,
+            Y2 = _textEditorPoint.Y + height,
+            Text = text,
+            Color = _color,
+            StrokeThickness = _stroke
+        };
+        FitLabelWidth(label);
+
+        // Keep the whole label inside the screenshot when it was placed near the right or bottom edge.
+        var shiftX = Math.Min(0, _imageWidth - label.X2);
+        var shiftY = Math.Min(0, _imageHeight - label.Y2);
+        (label.X1, label.X2) = (Math.Max(0, label.X1 + shiftX), Math.Max(0, label.X1 + shiftX) + (label.X2 - label.X1));
+        (label.Y1, label.Y2) = (Math.Max(0, label.Y1 + shiftY), Math.Max(0, label.Y1 + shiftY) + height);
+        Change(() => _annotations.Add(label));
+    }
+
+    /// <summary>Sets a label's right edge from its text and height, using the same sizing as the saved image.</summary>
+    private static void FitLabelWidth(ScreenshotAnnotation label)
+    {
+        var (left, top, _, bottom) = ScreenshotEditing.GetBounds(label);
+        var fontSize = ScreenshotEditing.TextFontSizeFor(bottom - top);
+        var formatted = new FormattedText(
+            label.Text ?? string.Empty,
+            System.Globalization.CultureInfo.CurrentUICulture,
+            System.Windows.FlowDirection.LeftToRight,
+            new Typeface(new System.Windows.Media.FontFamily("Segoe UI"), FontStyles.Normal, FontWeights.Bold, FontStretches.Normal),
+            fontSize,
+            WpfBrushes.White,
+            1.0);
+        (label.X1, label.Y1, label.Y2) = (left, top, bottom);
+        label.X2 = left + formatted.WidthIncludingTrailingWhitespace + fontSize * 1.1;
     }
 
     // ---- Undo, reset, crop -------------------------------------------------------------------------------------
@@ -399,6 +773,16 @@ public partial class StepEditWindow : Window
         _redactions = [.. state.Redactions];
         _annotations = state.Annotations.Select(ScreenshotEditing.Clone).ToList();
         _crop = state.Crop;
+        if (SelectedAnnotation is null)
+        {
+            _selectedAnnotationId = null;
+        }
+
+        if (_selectedRedaction >= _redactions.Count)
+        {
+            _selectedRedaction = -1;
+        }
+
         ScreenshotChanged = true;
         RenderEdits();
     }
@@ -423,6 +807,7 @@ public partial class StepEditWindow : Window
 
     private void SaveAndClose()
     {
+        CommitTextEditor();
         if (string.IsNullOrWhiteSpace(TitleBox.Text))
         {
             TitleBox.Text = _request.SuggestedTitle;
@@ -479,7 +864,18 @@ public partial class StepEditWindow : Window
             return;
         }
 
-        if (ctrl && e.Key == Key.Z)
+        if (HasSelection && e.Key is Key.Delete or Key.Back)
+        {
+            DeleteSelection();
+            e.Handled = true;
+        }
+        else if (HasSelection && e.Key is Key.Left or Key.Right or Key.Up or Key.Down)
+        {
+            var step = Keyboard.Modifiers.HasFlag(ModifierKeys.Shift) ? 10 : 1;
+            NudgeSelection(e.Key == Key.Left ? -step : e.Key == Key.Right ? step : 0, e.Key == Key.Up ? -step : e.Key == Key.Down ? step : 0);
+            e.Handled = true;
+        }
+        else if (ctrl && e.Key == Key.Z)
         {
             Undo();
             e.Handled = true;
@@ -517,6 +913,7 @@ public partial class StepEditWindow : Window
         }
 
         RenderCrop();
+        RenderSelection();
 
         UndoButton.IsEnabled = _undo.Count > 0;
         RedoButton.IsEnabled = _redo.Count > 0;
@@ -525,6 +922,52 @@ public partial class StepEditWindow : Window
         if (_tool == StepEditTool.Callout)
         {
             ToolHintText.Text = $"Click to place callout {ScreenshotEditing.NextCalloutNumber(_annotations)}.";
+        }
+    }
+
+    /// <summary>Outlines the selected edit and shows the points it can be resized from.</summary>
+    private void RenderSelection()
+    {
+        Rect bounds;
+        IEnumerable<(double X, double Y)> handles;
+        if (SelectedAnnotation is { } annotation)
+        {
+            var (left, top, right, bottom) = ScreenshotEditing.GetBounds(annotation);
+            bounds = ToDisplayRect(left, top, right - left, bottom - top);
+            handles = ScreenshotEditing.GetHandles(annotation).Select(h => (h.X, h.Y));
+        }
+        else if (_selectedRedaction >= 0 && _selectedRedaction < _redactions.Count)
+        {
+            var region = _redactions[_selectedRedaction];
+            bounds = ToDisplayRect(region.X, region.Y, region.Width, region.Height);
+            handles = [(region.X, region.Y), (region.X + region.Width, region.Y), (region.X, region.Y + region.Height), (region.X + region.Width, region.Y + region.Height)];
+        }
+        else
+        {
+            return;
+        }
+
+        var accent = new SolidColorBrush(WpfColor.FromRgb(0x25, 0x63, 0xEB));
+        var outline = new WpfRectangle
+        {
+            Width = bounds.Width + 8,
+            Height = bounds.Height + 8,
+            Stroke = accent,
+            StrokeThickness = 1.5,
+            StrokeDashArray = [3, 2],
+            IsHitTestVisible = false
+        };
+        Canvas.SetLeft(outline, bounds.X - 4);
+        Canvas.SetTop(outline, bounds.Y - 4);
+        OverlayCanvas.Children.Add(outline);
+
+        foreach (var (x, y) in handles)
+        {
+            var point = ToDisplayPoint(x, y);
+            var handle = new WpfRectangle { Width = 10, Height = 10, Fill = WpfBrushes.White, Stroke = accent, StrokeThickness = 2, IsHitTestVisible = false };
+            Canvas.SetLeft(handle, point.X - 5);
+            Canvas.SetTop(handle, point.Y - 5);
+            OverlayCanvas.Children.Add(handle);
         }
     }
 
@@ -663,7 +1106,7 @@ public partial class StepEditWindow : Window
                 marker.Children.Add(new TextBlock
                 {
                     Text = annotation.Text,
-                    Foreground = WpfBrushes.White,
+                    Foreground = TextBrushOn(color),
                     FontWeight = FontWeights.Bold,
                     FontSize = Math.Max(9, radius * 0.95),
                     HorizontalAlignment = System.Windows.HorizontalAlignment.Center,
@@ -672,6 +1115,33 @@ public partial class StepEditWindow : Window
                 Canvas.SetLeft(marker, center.X - radius);
                 Canvas.SetTop(marker, center.Y - radius);
                 OverlayCanvas.Children.Add(marker);
+                break;
+            }
+
+            case ScreenshotAnnotationType.Text:
+            {
+                var display = AnnotationRect(annotation);
+                var label = new Border
+                {
+                    Width = display.Width,
+                    Height = display.Height,
+                    Background = new SolidColorBrush(color),
+                    BorderBrush = new SolidColorBrush(WpfColor.FromArgb(230, 255, 255, 255)),
+                    BorderThickness = new Thickness(Math.Max(1, display.Height / 18)),
+                    CornerRadius = new CornerRadius(display.Height * 0.22),
+                    IsHitTestVisible = false,
+                    Child = new TextBlock
+                    {
+                        Text = annotation.Text,
+                        Foreground = TextBrushOn(color),
+                        FontFamily = new System.Windows.Media.FontFamily("Segoe UI"),
+                        FontWeight = FontWeights.Bold,
+                        FontSize = Math.Max(6, ScreenshotEditing.TextFontSizeFor(annotation.Y2 - annotation.Y1) * scale),
+                        HorizontalAlignment = System.Windows.HorizontalAlignment.Center,
+                        VerticalAlignment = System.Windows.VerticalAlignment.Center
+                    }
+                };
+                Place(label, display);
                 break;
             }
         }
@@ -817,6 +1287,21 @@ public partial class StepEditWindow : Window
         return RedactionCoordinateMapper.DisplayToImagePoint(display.X, display.Y, OverlayCanvas.ActualWidth, OverlayCanvas.ActualHeight, _imageWidth, _imageHeight);
     }
 
+    /// <summary>Image coordinates for a canvas point, including points outside the image (needed while dragging).</summary>
+    private (double X, double Y) ToImagePointUnclamped(WpfPoint display)
+    {
+        var scale = Math.Max(0.0001, GetImageScale());
+        var offsetX = (OverlayCanvas.ActualWidth - _imageWidth * scale) / 2;
+        var offsetY = (OverlayCanvas.ActualHeight - _imageHeight * scale) / 2;
+        return ((display.X - offsetX) / scale, (display.Y - offsetY) / scale);
+    }
+
+    private static WpfBrush TextBrushOn(WpfColor background)
+    {
+        var light = 0.299 * background.R + 0.587 * background.G + 0.114 * background.B > 170;
+        return light ? new SolidColorBrush(WpfColor.FromRgb(17, 24, 39)) : WpfBrushes.White;
+    }
+
     private double GetImageScale()
     {
         if (OverlayCanvas.ActualWidth <= 0 || OverlayCanvas.ActualHeight <= 0 || _imageWidth <= 0 || _imageHeight <= 0)
@@ -862,6 +1347,14 @@ public partial class StepEditWindow : Window
         converted.Freeze();
         return converted;
     }
+
+    private sealed record EditDrag(
+        EditHandle Handle,
+        (double X, double Y) Start,
+        EditState Before,
+        ScreenshotAnnotation? OriginAnnotation,
+        RedactionRegion? OriginRegion,
+        bool Changed = false);
 
     private sealed record EditState(List<RedactionRegion> Redactions, List<ScreenshotAnnotation> Annotations, ScreenBounds? Crop);
 }

@@ -66,6 +66,15 @@
                 </StackPanel>
 
                 <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                    <StackPanel x:Name="SelectionPanel" Orientation="Horizontal" VerticalAlignment="Center" Visibility="Collapsed" Margin="0,0,14,0">
+                        <Button x:Name="DeleteSelectedButton"
+                                Click="DeleteSelected_Click"
+                                Padding="12,0" Height="36"
+                                ToolTip="Delete every selected step" />
+                        <Button Content="Select all" Click="SelectAllSteps_Click" Padding="12,0" Height="36" Margin="6,0,0,0" />
+                        <Button Content="Clear" Click="ClearStepSelection_Click" Padding="12,0" Height="36" Margin="6,0,0,0"
+                                ToolTip="Clear the selection" />
+                    </StackPanel>
                     <Button Content="&#xE7C8;"
                             ToolTip="Record more steps"
                             Click="RecordMore_Click"
@@ -198,6 +207,12 @@
                                             </Grid.ColumnDefinitions>
 
                                             <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                                                <CheckBox IsChecked="{Binding IsSelected, Mode=TwoWay}"
+                                                          Click="StepSelection_Click"
+                                                          ToolTip="Select this step, then use Delete selected at the top to remove several steps at once"
+                                                          AutomationProperties.Name="{Binding Index, StringFormat=Select step {0}}"
+                                                          VerticalAlignment="Center"
+                                                          Margin="0,0,10,0" />
                                                 <Border Style="{StaticResource Chip}">
                                                     <TextBlock Text="{Binding ActionType}" Style="{StaticResource ChipText}" />
                                                 </Border>
@@ -270,6 +285,22 @@
                                                         Click="MoveStepDown_Click"
                                                         Style="{StaticResource IconButton}"
                                                         Margin="4,0,0,0" />
+                                                <Button Content="&#xE712;"
+                                                        ToolTip="More: duplicate, merge with the next step, or split into two"
+                                                        Click="MoreStepActions_Click"
+                                                        Style="{StaticResource IconButton}"
+                                                        Margin="4,0,0,0">
+                                                    <Button.ContextMenu>
+                                                        <ContextMenu>
+                                                            <MenuItem Header="Duplicate step" Click="DuplicateStep_Click"
+                                                                      ToolTip="Add a copy of this step below it, with its own screenshot and edits" />
+                                                            <MenuItem Header="Merge with next step" Click="MergeStep_Click"
+                                                                      ToolTip="Keep this step's screenshot and title, and add the next step's title and description to its description" />
+                                                            <MenuItem Header="Split into two steps" Click="SplitStep_Click"
+                                                                      ToolTip="Add a second step below with its own copy of the original screenshot. Text after the first paragraph of the description moves to it." />
+                                                        </ContextMenu>
+                                                    </Button.ContextMenu>
+                                                </Button>
                                                 <Rectangle Width="1" Height="20"
                                                            Fill="{StaticResource BorderSoftBrush}"
                                                            VerticalAlignment="Center"

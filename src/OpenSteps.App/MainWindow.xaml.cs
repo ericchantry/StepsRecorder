@@ -940,6 +940,104 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         }
     }
 
+    internal void DuplicateStepFromEditor(object sender)
+    {
+        if ((sender as FrameworkElement)?.DataContext is RecordedStep step)
+        {
+            StepEditorOperations.DuplicateBelow(Steps, step, CopyStepImage);
+            RenumberSteps();
+            UpdateSessionSummary();
+            _ = SaveSessionAsync(showMessage: false);
+        }
+    }
+
+    internal void MergeStepWithNextFromEditor(object sender)
+    {
+        if ((sender as FrameworkElement)?.DataContext is not RecordedStep step)
+        {
+            return;
+        }
+
+        if (StepEditorOperations.MergeWithNext(Steps, step) is null)
+        {
+            WinForms.MessageBox.Show("This is the last step, so there is nothing after it to merge.", "OpenSteps", WinForms.MessageBoxButtons.OK, WinForms.MessageBoxIcon.Information);
+            return;
+        }
+
+        RenumberSteps();
+        UpdateSessionSummary();
+        _ = SaveSessionAsync(showMessage: false);
+    }
+
+    internal void SplitStepFromEditor(object sender)
+    {
+        if ((sender as FrameworkElement)?.DataContext is RecordedStep step)
+        {
+            StepEditorOperations.SplitBelow(Steps, step, CopyStepImage);
+            RenumberSteps();
+            UpdateSessionSummary();
+            _ = SaveSessionAsync(showMessage: false);
+        }
+    }
+
+    internal int SelectedStepCount => Steps.Count(step => step.IsSelected);
+
+    internal void SetAllStepsSelectedFromEditor(bool selected)
+    {
+        foreach (var step in Steps)
+        {
+            step.IsSelected = selected;
+        }
+
+        RefreshStepViews();
+    }
+
+    internal void DeleteSelectedStepsFromEditor()
+    {
+        var count = SelectedStepCount;
+        if (count == 0)
+        {
+            return;
+        }
+
+        var answer = WinForms.MessageBox.Show(
+            count == 1 ? "Delete the selected step?" : $"Delete the {count} selected steps?",
+            "OpenSteps",
+            WinForms.MessageBoxButtons.YesNo,
+            WinForms.MessageBoxIcon.Warning);
+        if (answer != WinForms.DialogResult.Yes)
+        {
+            return;
+        }
+
+        StepEditorOperations.RemoveSelected(Steps);
+        RenumberSteps();
+        UpdateSessionSummary();
+        _ = SaveSessionAsync(showMessage: false);
+    }
+
+    /// <summary>Copies a step image inside the session's images folder and returns the new path (null if it can't be copied).</summary>
+    private string? CopyStepImage(string source)
+    {
+        try
+        {
+            if (!File.Exists(source))
+            {
+                return null;
+            }
+
+            var directory = GetSessionImagesDirectory();
+            Directory.CreateDirectory(directory);
+            var destination = Path.Combine(directory, $"copy-{Guid.NewGuid().ToString("N")[..8]}-{DateTimeOffset.Now:yyyyMMdd-HHmmssfff}.png");
+            File.Copy(source, destination);
+            return destination;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
     internal void MoveStepUpFromEditor(object sender)
     {
         if ((sender as FrameworkElement)?.DataContext is not RecordedStep step)

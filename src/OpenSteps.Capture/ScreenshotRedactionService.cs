@@ -154,6 +154,49 @@ public sealed class ScreenshotRedactionService
         {
             DrawMarker(graphics, imageWidth, imageHeight, annotation, color);
         }
+        else if (annotation.Type == ScreenshotAnnotationType.Text)
+        {
+            DrawTextLabel(graphics, annotation, color);
+        }
+    }
+
+    /// <summary>A text label: white bold text on a rounded block of the annotation's colour, readable on any background.</summary>
+    private static void DrawTextLabel(Graphics graphics, ScreenshotAnnotation annotation, Color color)
+    {
+        var text = annotation.Text?.Trim();
+        if (string.IsNullOrEmpty(text))
+        {
+            return;
+        }
+
+        var (left, top, _, bottom) = OpenSteps.Core.Services.ScreenshotEditing.GetBounds(annotation);
+        var height = (float)Math.Max(12, bottom - top);
+        var fontSize = (float)OpenSteps.Core.Services.ScreenshotEditing.TextFontSizeFor(height);
+        using var font = new Font("Segoe UI", fontSize, FontStyle.Bold, GraphicsUnit.Pixel);
+        using var format = new StringFormat(StringFormat.GenericTypographic) { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center, FormatFlags = StringFormatFlags.NoWrap };
+        graphics.TextRenderingHint = System.Drawing.Text.TextRenderingHint.AntiAliasGridFit;
+        var textWidth = graphics.MeasureString(text, font, int.MaxValue, format).Width;
+        var box = new RectangleF((float)left, (float)top, textWidth + fontSize * 1.1f, height);
+
+        using var path = new GraphicsPath();
+        var diameter = Math.Min(height * 0.45f, box.Width);
+        path.AddArc(box.X, box.Y, diameter, diameter, 180, 90);
+        path.AddArc(box.Right - diameter, box.Y, diameter, diameter, 270, 90);
+        path.AddArc(box.Right - diameter, box.Bottom - diameter, diameter, diameter, 0, 90);
+        path.AddArc(box.X, box.Bottom - diameter, diameter, diameter, 90, 90);
+        path.CloseFigure();
+
+        using var fill = new SolidBrush(color);
+        using var border = new Pen(Color.FromArgb(230, 255, 255, 255), Math.Max(1.5f, height / 18f));
+        graphics.FillPath(fill, path);
+        graphics.DrawPath(border, path);
+        using var textBrush = new SolidBrush(IsLight(color) ? Color.FromArgb(17, 24, 39) : Color.White);
+        graphics.DrawString(text, font, textBrush, box, format);
+    }
+
+    private static bool IsLight(Color color)
+    {
+        return (0.299 * color.R + 0.587 * color.G + 0.114 * color.B) > 170;
     }
 
     private static void DrawMarker(Graphics graphics, int imageWidth, int imageHeight, ScreenshotAnnotation annotation, Color color)
@@ -170,7 +213,7 @@ public sealed class ScreenshotRedactionService
 
         var text = string.IsNullOrWhiteSpace(annotation.Text) ? "1" : annotation.Text.Trim();
         using var font = new Font("Segoe UI", Math.Max(10f, (float)radius * 0.95f), FontStyle.Bold, GraphicsUnit.Pixel);
-        using var textBrush = new SolidBrush(Color.White);
+        using var textBrush = new SolidBrush(IsLight(color) ? Color.FromArgb(17, 24, 39) : Color.White);
         using var format = new StringFormat
         {
             Alignment = StringAlignment.Center,

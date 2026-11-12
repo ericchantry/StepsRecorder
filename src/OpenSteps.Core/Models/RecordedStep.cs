@@ -45,6 +45,10 @@ public sealed class RecordedStep
 
     public bool HasRedactions => Redactions.Count > 0;
 
+    /// <summary>Ticked in the editor's step list for actions on several steps at once. Not saved.</summary>
+    [JsonIgnore]
+    public bool IsSelected { get; set; }
+
     /// <summary>True when the screenshot is shown with any edits (blur, annotations or crop).</summary>
     [JsonIgnore]
     public bool HasScreenshotEdits => Redactions.Count > 0

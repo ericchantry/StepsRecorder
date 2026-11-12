@@ -9,7 +9,24 @@
         <Style x:Key="ToolButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
             <Setter Property="Padding" Value="12,6" />
             <Setter Property="Margin" Value="0,0,6,0" />
-            <Setter Property="MinWidth" Value="64" />
+            <Setter Property="MinWidth" Value="58" />
+        </Style>
+        <Style x:Key="Swatch" TargetType="Button">
+            <Setter Property="Width" Value="24" />
+            <Setter Property="Height" Value="24" />
+            <Setter Property="Margin" Value="0,0,5,0" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="BorderBrush" Value="Transparent" />
+            <Setter Property="AutomationProperties.Name" Value="{Binding ToolTip, RelativeSource={RelativeSource Self}, StringFormat='{}{0} colour'}" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="2" CornerRadius="12" Padding="2">
+                            <Border Background="{TemplateBinding Background}" CornerRadius="9" />
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
         </Style>
     </Window.Resources>
 
@@ -28,6 +45,8 @@
         <Border Grid.Row="0" Grid.ColumnSpan="2" Style="{StaticResource Card}" Padding="12,10" Margin="0,0,0,12">
             <DockPanel LastChildFill="False">
                 <WrapPanel DockPanel.Dock="Left" VerticalAlignment="Center">
+                    <Button x:Name="SelectToolButton" Content="Select" Tag="Select" Click="Tool_Click" Style="{StaticResource ToolButton}"
+                            ToolTip="Click an edit to select it, then drag it to move it or drag a corner to resize it. Delete removes it; arrow keys nudge it; double-click a label to change its text." />
                     <Button x:Name="CropToolButton" Content="Crop" Tag="Crop" Click="Tool_Click" Style="{StaticResource ToolButton}"
                             ToolTip="Drag to choose the part of the screenshot to show. The rest is kept and can be brought back." />
                     <Button x:Name="BoxToolButton" Content="Box" Tag="Box" Click="Tool_Click" Style="{StaticResource ToolButton}"
@@ -36,12 +55,21 @@
                             ToolTip="Drag from the tail to the point of the arrow" />
                     <Button x:Name="CalloutToolButton" Content="Callout" Tag="Callout" Click="Tool_Click" Style="{StaticResource ToolButton}"
                             ToolTip="Click to place a numbered callout. Numbers go up by one each time and close up when one is removed." />
+                    <Button x:Name="TextToolButton" Content="Text" Tag="Text" Click="Tool_Click" Style="{StaticResource ToolButton}"
+                            ToolTip="Click where a label should go, type it, and press Enter" />
                     <Button x:Name="HighlightToolButton" Content="Highlight" Tag="Highlight" Click="Tool_Click" Style="{StaticResource ToolButton}"
                             ToolTip="Drag to shade an area in yellow" />
                     <Button x:Name="BlurToolButton" Content="Blur" Tag="Blur" Click="Tool_Click" Style="{StaticResource ToolButton}"
                             ToolTip="Drag to pixelate private information" />
                     <Button x:Name="CircleToolButton" Content="Circle" Tag="Circle" Click="Tool_Click" Style="{StaticResource ToolButton}"
                             ToolTip="Drag to circle something" />
+                    <StackPanel x:Name="ColorPanel" Orientation="Horizontal" VerticalAlignment="Center" Margin="10,0,0,0">
+                        <Button Tag="#D92D20" ToolTip="Red" Background="#D92D20" Click="Color_Click" Style="{StaticResource Swatch}" />
+                        <Button Tag="#2563EB" ToolTip="Blue" Background="#2563EB" Click="Color_Click" Style="{StaticResource Swatch}" />
+                        <Button Tag="#16A34A" ToolTip="Green" Background="#16A34A" Click="Color_Click" Style="{StaticResource Swatch}" />
+                        <Button Tag="#F59E0B" ToolTip="Orange" Background="#F59E0B" Click="Color_Click" Style="{StaticResource Swatch}" />
+                        <Button Tag="#111827" ToolTip="Black" Background="#111827" Click="Color_Click" Style="{StaticResource Swatch}" />
+                    </StackPanel>
                 </WrapPanel>
                 <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
                     <Button x:Name="RemoveCropButton" Content="Remove crop" Click="RemoveCrop_Click" Style="{StaticResource ToolButton}"
@@ -95,7 +123,7 @@
                                    Text="This screenshot was edited with an earlier version of OpenSteps, so its boxes and arrows can't be changed one by one. Changing the screenshot here starts again from the original capture." />
                     </Border>
                     <TextBlock TextWrapping="Wrap" FontSize="11.5" Foreground="{StaticResource TextMutedBrush}" Margin="0,12,0,0"
-                               Text="Right-click an edit to remove it. Your edits are saved on a copy: the original capture is never changed, and Reset to original brings it back." />
+                               Text="Use Select to move, resize or recolour an edit, or press Delete to remove it (right-click also removes). Your edits are saved on a copy: the original capture is never changed, and Reset to original brings it back." />
                 </StackPanel>
 
                 <TextBox x:Name="DescriptionBox" TextWrapping="Wrap" AcceptsReturn="True"
