@@ -66,7 +66,8 @@ internal static class ThemeManager
         }
 
         var resolved = ThemeResolver.Resolve(_chosen, WindowsUsesDarkApps(), SystemParameters.HighContrast);
-        var source = new Uri($"Themes/{resolved}.xaml", UriKind.Relative);
+        // Named with the assembly so it resolves the same way whichever program hosts these windows.
+        var source = new Uri($"/OpenSteps.App;component/Themes/{resolved}.xaml", UriKind.Relative);
         var dictionaries = application.Resources.MergedDictionaries;
         if (dictionaries.Count == 0 || dictionaries[0].Source != source)
         {
