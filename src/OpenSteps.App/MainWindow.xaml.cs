@@ -224,9 +224,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             _mouseHook.PointerActivityCaptured += MouseHook_PointerActivityCaptured;
             _mouseHook.Start();
 
-            _keyboardHook = new GlobalKeyboardHook(ShouldIgnoreKeyboard, () => CaptureTypedText && _screenshotCaptureTargetStep is null);
-            _keyboardHook.KeyboardInputCaptured += KeyboardHook_KeyboardInputCaptured;
-            _keyboardHook.Start();
+            UpdateKeyboardHook();
 
             ShowRecordingTray();
             Hide();
@@ -1495,7 +1493,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         _trayPauseItem.Click += (_, _) => TrayTogglePause();
         menu.Items.Add(_trayPauseItem);
 
-        _trayTypedTextItem = new WinForms.ToolStripMenuItem("Record typed text")
+        _trayTypedTextItem = new WinForms.ToolStripMenuItem("Record keyboard")
         {
             Checked = CaptureTypedText,
             Enabled = IsTypedTextOptionEnabled
@@ -1671,17 +1669,51 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             _mouseHook = null;
         }
 
+        RemoveKeyboardHook();
+    }
+
+    /// <summary>
+    /// Installs the keyboard hook only while it is needed (recording, with keyboard recording on) and removes it
+    /// otherwise, so with the option or the IT policy off OpenSteps does not listen to the keyboard at all.
+    /// Must run on the UI thread: low-level hooks are called back on the thread that installed them.
+    /// </summary>
+    private void UpdateKeyboardHook()
+    {
+        var needed = KeyboardListening.IsNeeded(_isRecording, CaptureTypedText, _screenshotCaptureTargetStep is not null);
+        if (!needed)
+        {
+            RemoveKeyboardHook();
+            return;
+        }
+
+        if (_keyboardHook is not null)
+        {
+            return;
+        }
+
+        var hook = new GlobalKeyboardHook(ShouldIgnoreKeyboard, () => CaptureTypedText && _screenshotCaptureTargetStep is null);
+        hook.KeyboardInputCaptured += KeyboardHook_KeyboardInputCaptured;
+        hook.Start();
+        _keyboardHook = hook;
+    }
+
+    private void RemoveKeyboardHook()
+    {
+        var hook = _keyboardHook;
+        _keyboardHook = null;
+        if (hook is null)
+        {
+            return;
+        }
+
         try
         {
-            if (_keyboardHook is not null)
-            {
-                _keyboardHook.KeyboardInputCaptured -= KeyboardHook_KeyboardInputCaptured;
-                _keyboardHook.Dispose();
-            }
+            hook.KeyboardInputCaptured -= KeyboardHook_KeyboardInputCaptured;
+            hook.Dispose();
         }
-        finally
+        catch
         {
-            _keyboardHook = null;
+            // Nothing more can be done if Windows refuses to remove the hook; it dies with the process.
         }
     }
 

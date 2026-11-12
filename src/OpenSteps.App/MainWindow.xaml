@@ -173,7 +173,7 @@
                           ToolTipService.ShowOnDisabled="True"
                           VerticalAlignment="Center"
                           FontSize="12.5" />
-                <CheckBox Content="Typed text"
+                <CheckBox Content="Keyboard"
                           IsChecked="{Binding CaptureTypedText, Mode=TwoWay}"
                           IsEnabled="{Binding IsTypedTextOptionEnabled}"
                           ToolTip="{Binding TypedTextOptionToolTip}"

@@ -57,6 +57,8 @@ public partial class MainWindow
                 _currentSegment.TypedTextCaptured = true;
             }
 
+            // Switching this while recording (from the tray icon) installs or removes the keyboard hook right away.
+            Dispatcher.Invoke(UpdateKeyboardHook);
             RaiseRecordingOptionsChanged();
             if (!_loadingSettings)
             {
@@ -96,8 +98,8 @@ public partial class MainWindow
         : "Record a video of the whole session (all monitors). Every click and keystroke links to its moment in the video.";
 
     public string TypedTextOptionToolTip => _policy.DisableTypedTextCapture
-        ? "Recording typed text has been turned off by your IT department. Key names and shortcuts are still recorded."
-        : "Record the characters you type. Password and other sensitive fields are always masked, and covered in screenshots and video. Can be switched off from the tray icon while recording.";
+        ? "Keyboard recording has been turned off by your IT department. OpenSteps does not listen to the keyboard at all; clicks are still recorded."
+        : "Record what you type and the keys and shortcuts you press. Password and other sensitive fields are always masked, and covered in screenshots and video.\nWhen this is off, OpenSteps does not listen to the keyboard at all. Can be switched from the tray icon while recording.";
 
     private bool IsTimelineActive => _isRecording && !_isPaused && _currentSegment is not null && _screenshotCaptureTargetStep is null;
 
