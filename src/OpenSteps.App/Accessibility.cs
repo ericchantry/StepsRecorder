@@ -22,7 +22,7 @@ public static class Accessibility
         }
 
         _registered = true;
-        foreach (var type in new[] { typeof(ButtonBase), typeof(System.Windows.Controls.TextBox), typeof(System.Windows.Controls.ComboBox), typeof(System.Windows.Controls.ListBox), typeof(Slider) })
+        foreach (var type in new[] { typeof(System.Windows.Controls.Primitives.ButtonBase), typeof(System.Windows.Controls.TextBox), typeof(System.Windows.Controls.ComboBox), typeof(System.Windows.Controls.ListBox), typeof(Slider) })
         {
             EventManager.RegisterClassHandler(type, FrameworkElement.LoadedEvent, new RoutedEventHandler(OnControlLoaded));
         }

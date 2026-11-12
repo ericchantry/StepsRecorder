@@ -218,12 +218,12 @@ public static class ThemeManager
     /// <summary>High contrast uses the colours of the Windows contrast theme the user chose.</summary>
     private static Dictionary<string, WpfColor> BuildHighContrast()
     {
-        var window = SystemColors.WindowColor;
-        var text = SystemColors.WindowTextColor;
-        var highlight = SystemColors.HighlightColor;
-        var highlightText = SystemColors.HighlightTextColor;
-        var gray = SystemColors.GrayTextColor;
-        var hot = SystemColors.HotTrackColor;
+        var window = System.Windows.SystemColors.WindowColor;
+        var text = System.Windows.SystemColors.WindowTextColor;
+        var highlight = System.Windows.SystemColors.HighlightColor;
+        var highlightText = System.Windows.SystemColors.HighlightTextColor;
+        var gray = System.Windows.SystemColors.GrayTextColor;
+        var hot = System.Windows.SystemColors.HotTrackColor;
         var palette = new Dictionary<string, WpfColor>();
         foreach (var key in Light.Keys)
         {
