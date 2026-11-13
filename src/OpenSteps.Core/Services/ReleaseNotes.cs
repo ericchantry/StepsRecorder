@@ -195,7 +195,7 @@ public static class ReleaseNotes
     }
 
     /// <summary>Splits a line into runs, reading **bold**, `code` and [text](link), which keeps only its text.</summary>
-    internal static IReadOnlyList<ReleaseNoteSpan> ParseSpans(string text)
+    public static IReadOnlyList<ReleaseNoteSpan> ParseSpans(string text)
     {
         var spans = new List<ReleaseNoteSpan>();
         var plain = new StringBuilder();
