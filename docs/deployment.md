@@ -37,13 +37,13 @@ Silent, from a file share (the script and zip can live anywhere the user can rea
 
 ```powershell
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File \\fileserver\software\OpenSteps\Install-OpenSteps.ps1 `
-    -Source \\fileserver\software\OpenSteps\OpenSteps-0.5.0-win-x64.zip -Quiet
+    -Source \\fileserver\software\OpenSteps\OpenSteps-0.6.0-win-x64.zip -Quiet
 ```
 
 Silent, straight from GitHub with a pinned version and hash:
 
 ```powershell
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\Install-OpenSteps.ps1 -Version v0.5.0 -ExpectedSha256 <hash> -Quiet
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\Install-OpenSteps.ps1 -Version v0.6.0 -ExpectedSha256 <hash> -Quiet
 ```
 
 | Parameter | Purpose |
@@ -90,7 +90,7 @@ commands and detection rule, with **Installation behavior: Install for user**.
 User Configuration > Policies > Windows Settings > Scripts > Logon:
 
 ```text
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File \\fileserver\software\OpenSteps\Install-OpenSteps.ps1 -Source \\fileserver\software\OpenSteps\OpenSteps-0.5.0-win-x64.zip -Quiet
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File \\fileserver\software\OpenSteps\Install-OpenSteps.ps1 -Source \\fileserver\software\OpenSteps\OpenSteps-0.6.0-win-x64.zip -Quiet
 ```
 
 Replace the zip on the share to roll out a new version.
@@ -111,6 +111,7 @@ write to either key, so users cannot override them.
 |---|---|
 | `DisableTypedTextCapture` | Never record the keyboard. OpenSteps does not install its keyboard hook at all, so typed text, key presses and shortcuts are all left out. The "Keyboard" option is greyed out. |
 | `DisableVideoRecording` | Never record session video. Screenshots and the input timeline still work. |
+| `DisableUpdateChecks` | Never look for new versions. OpenSteps does not contact GitHub, the daily check does not run, and the user cannot update from inside the app. Set this where you deploy and upgrade OpenSteps centrally. |
 
 ```reg
 Windows Registry Editor Version 5.00
@@ -118,7 +119,23 @@ Windows Registry Editor Version 5.00
 [HKEY_LOCAL_MACHINE\SOFTWARE\Policies\OpenSteps]
 "DisableTypedTextCapture"=dword:00000001
 "DisableVideoRecording"=dword:00000000
+"DisableUpdateChecks"=dword:00000001
 ```
+
+### Updates
+
+From 0.6, OpenSteps can update itself. Left alone it looks at the project's releases page once a
+day, and when a newer version is published it shows the user what changed and offers to install it.
+Choosing **Update now** downloads the release asset, checks it against the SHA-256 published beside
+it, and runs the `Install-OpenSteps.ps1` from inside that package with `-Source`, `-InstallDir`,
+`-ExpectedSha256`, `-Force` and `-Launch`. It is the same per-user install you would run yourself,
+so it needs no administrator rights and leaves `%LOCALAPPDATA%\OpenSteps` alone. The install log is
+`%LOCALAPPDATA%\OpenSteps\install.log` as usual.
+
+If you deploy OpenSteps through Intune, Configuration Manager or a logon script, set
+`DisableUpdateChecks` to `1` so versions change only when you say so. The check is one anonymous
+HTTPS request to `api.github.com`; nothing about the user, the machine or their guides is sent. If
+that host is blocked, the check fails quietly and OpenSteps carries on.
 
 ## What gets recorded
 

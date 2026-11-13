@@ -4,7 +4,7 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d"
-        Title="OpenSteps" Height="76" Width="1200" MinHeight="76" MinWidth="1200"
+        Title="OpenSteps" Height="76" Width="1250" MinHeight="76" MinWidth="1250"
         WindowStyle="None" ResizeMode="NoResize" AllowsTransparency="True"
         Background="Transparent" Topmost="True">
     <Window.Resources>
@@ -104,6 +104,15 @@
                     </ControlTemplate>
                 </Setter.Value>
             </Setter>
+        </Style>
+
+        <!--  The update button, coloured when a new version is waiting.  -->
+        <Style x:Key="UpdatePillIconButton" TargetType="Button" BasedOn="{StaticResource PillIconButton}">
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding UpdateAvailable}" Value="True">
+                    <Setter Property="Foreground" Value="{DynamicResource InfoBrush}" />
+                </DataTrigger>
+            </Style.Triggers>
         </Style>
 
         <Style x:Key="Divider" TargetType="Rectangle">
@@ -257,6 +266,10 @@
 
                 <Rectangle Style="{StaticResource Divider}" Margin="4,0,8,0" />
 
+                <Button Content="{Binding UpdateGlyph}"
+                        ToolTip="{Binding UpdateToolTip}"
+                        Click="CheckForUpdates_Click"
+                        Style="{StaticResource UpdatePillIconButton}" />
                 <Button Content="{Binding ThemeGlyph}"
                         ToolTip="{Binding ThemeToolTip}"
                         Click="CycleTheme_Click"
