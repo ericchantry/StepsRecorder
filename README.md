@@ -27,6 +27,14 @@ Everything stays on your computer. No account, no cloud, no telemetry, and no ad
 - **Bug reports and QA** – exact steps to reproduce an issue, with the video and every keystroke to prove it.
 - **Support** – customer and internal walkthroughs.
 
+## What's new in 0.6
+
+Full release history: [CHANGELOG.md](CHANGELOG.md).
+
+- **OpenSteps keeps itself up to date.** Once a day it checks its releases page. When a newer version is out it shows **what changed between your version and that one** and offers to install it: click **Update now** and OpenSteps downloads the release, verifies it, saves your work, closes, replaces itself and starts again. No administrator rights, no uninstall first.
+- **You stay in charge.** **Later** asks again tomorrow, **Skip this version** drops that one for good, and **Check for updates daily** turns the whole thing off. The button next to the theme button checks whenever you want and turns blue when a version is waiting.
+- **It never interrupts a recording**, and an IT department can switch updates off centrally with the `DisableUpdateChecks` policy.
+
 ## What's new in 0.5
 
 Full release history: [CHANGELOG.md](CHANGELOG.md).

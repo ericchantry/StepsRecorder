@@ -29,4 +29,16 @@ public sealed class AppSettings
     public bool CaptureTypedText { get; set; } = true;
 
     public int VideoFramesPerSecond { get; set; } = 10;
+
+    /// <summary>Look once a day for a newer OpenSteps on the project's releases page.</summary>
+    public bool CheckForUpdates { get; set; } = true;
+
+    /// <summary>When the releases page was last looked at, so the check happens once a day and no more.</summary>
+    public DateTimeOffset? LastUpdateCheck { get; set; }
+
+    /// <summary>A version the user asked not to be told about again ("0.6.0"), or null.</summary>
+    public string? SkippedUpdateVersion { get; set; }
+
+    /// <summary>Offer pre-release versions too. Off unless someone turns it on in settings.json.</summary>
+    public bool IncludePrereleaseUpdates { get; set; }
 }

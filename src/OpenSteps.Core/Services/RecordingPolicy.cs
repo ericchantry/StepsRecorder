@@ -5,11 +5,12 @@ namespace OpenSteps.Core.Services;
 /// HKLM\Software\Policies\OpenSteps or HKCU\Software\Policies\OpenSteps (machine values win).
 /// Standard users cannot write to either key, so these cannot be overridden from the app.
 /// </summary>
-public sealed record RecordingPolicy(bool DisableTypedTextCapture, bool DisableVideoRecording)
+public sealed record RecordingPolicy(bool DisableTypedTextCapture, bool DisableVideoRecording, bool DisableUpdateChecks = false)
 {
     public const string RegistryKeyPath = @"Software\Policies\OpenSteps";
     public const string DisableTypedTextCaptureValue = "DisableTypedTextCapture";
     public const string DisableVideoRecordingValue = "DisableVideoRecording";
+    public const string DisableUpdateChecksValue = "DisableUpdateChecks";
 
     public static RecordingPolicy None { get; } = new(false, false);
 
@@ -18,6 +19,7 @@ public sealed record RecordingPolicy(bool DisableTypedTextCapture, bool DisableV
     {
         return new RecordingPolicy(
             readValue(DisableTypedTextCaptureValue) is > 0,
-            readValue(DisableVideoRecordingValue) is > 0);
+            readValue(DisableVideoRecordingValue) is > 0,
+            readValue(DisableUpdateChecksValue) is > 0);
     }
 }

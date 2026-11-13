@@ -2,6 +2,23 @@
 
 All notable changes to OpenSteps. Versions follow [semantic versioning](https://semver.org/); each release's zip is on the [Releases](https://github.com/ericchantry/StepsRecorder/releases) page.
 
+## [0.6.0] - 2026-11-12
+
+### Added
+- **OpenSteps updates itself.** No more uninstalling and reinstalling to move to a new version.
+  - Once a day it looks at its own [releases page](https://github.com/ericchantry/StepsRecorder/releases) and, when a newer version is published, shows what changed between the version you have and the newest one — every release in between, not just the last one.
+  - **Update now** downloads the release, checks it against the SHA-256 published with it, and hands it to the same per-user installer IT uses. OpenSteps saves your work, closes, is replaced and starts again. No administrator rights are needed.
+  - **Later** asks again tomorrow; **Skip this version** never mentions that one again but still offers the next.
+  - A button next to the theme button checks on demand and turns blue when a version is waiting. **Check for updates daily** on the update window turns the daily look on and off.
+- The update check never runs, and no window appears, while a recording is in progress.
+- If an update does not finish installing, the next start says so and points at `%LOCALAPPDATA%\OpenSteps\install.log`. Nothing is lost: a failed upgrade leaves the version you had in place.
+- `DisableUpdateChecks` policy, so an IT department that deploys OpenSteps centrally can switch off both the daily check and the user's ability to update.
+
+### Notes
+- Only releases that ship the `OpenSteps-<version>-win-x64.zip` package are offered, and pre-releases are left out unless `IncludePrereleaseUpdates` is set in `settings.json`.
+- A copy run from a build folder rather than an install will not replace its own files; it points at the releases page instead.
+- The check reads one public GitHub page. Nothing about you, your machine or your guides is sent.
+
 ## [0.5.0] - 2026-11-12
 
 ### Changed

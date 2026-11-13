@@ -224,3 +224,30 @@ Use this checklist before demoing OpenSteps.
 1. Start a recording. Run `Install-OpenSteps.ps1` and confirm it exits with code `2` and logs that the upgrade was postponed.
 2. Run it with `-InterruptRecording` and confirm OpenSteps stops and saves the recording, closes, and the upgrade completes with the guide intact.
 3. With OpenSteps open on the session editor (recorder bar hidden), run the installer and confirm it closes cleanly without being force-stopped.
+
+## Updates
+
+Needs at least one published release that is newer than the version you are running. To test without
+publishing, run a build whose version is lower than the newest release (`dotnet publish -p:Version=0.0.1`)
+and install that with `Install-OpenSteps.ps1 -Force`.
+
+1. Start OpenSteps with no `LastUpdateCheck` in `settings.json`. Confirm the update window appears by itself
+   shortly after the bar, names the new version and the one you are on, and lists **what changed** for every
+   release between the two, newest first, with headings and bullets rather than raw markdown.
+2. Click **Later**. Confirm the window closes, the update button stays blue, and nothing was downloaded.
+3. Click the update button. Confirm the same window comes back without another look at GitHub.
+4. Click **Skip this version**, restart OpenSteps, and confirm it is not offered again. Confirm
+   `SkippedUpdateVersion` is in `settings.json`, and that clicking the update button still shows it on demand.
+5. Clear `SkippedUpdateVersion`, then click **Update now**. Confirm the download progresses, OpenSteps saves
+   its work and closes, and it starts again on the new version with your guides and settings intact.
+6. Check Settings > Apps shows the new version, and that the Start Menu shortcut still works.
+7. Start a recording, then wait for (or force) a check. Confirm no update window appears while recording and
+   the recording is not disturbed.
+8. Turn **Check for updates daily** off, restart, and confirm no check happens (`LastUpdateCheck` stays put)
+   while the button still checks when clicked.
+9. Set `DisableUpdateChecks` to `1` under `HKCU\SOFTWARE\Policies\OpenSteps`. Confirm no daily check runs, the
+   daily tick box is greyed out, and the button only reports the version you are on.
+10. Unplug the network and click the update button. Confirm it says it could not reach the releases page and
+    nothing else happens.
+11. Run a copy from `bin\Release` rather than an install. Confirm **Update now** becomes **Open releases page**
+    and explains why it will not replace files it did not install.

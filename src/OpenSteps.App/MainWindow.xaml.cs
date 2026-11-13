@@ -76,6 +76,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             PositionControllerBottomCenter();
             await LoadSettingsAsync();
             await OfferRecoveryAsync();
+            await StartUpdateChecksAsync();
         };
         _typingTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(850) };
         _typingTimer.Tick += async (_, _) => await FinalizePendingTypingAsync();
