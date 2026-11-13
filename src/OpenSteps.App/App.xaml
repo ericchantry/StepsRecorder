@@ -487,6 +487,55 @@
             </Setter>
         </Style>
 
+        <!--  ─────────── RadioButton ───────────────────────────────────── -->
+
+        <Style TargetType="RadioButton">
+            <Setter Property="AutomationProperties.Name" Value="{Binding RelativeSource={RelativeSource Self}, Converter={StaticResource AccessibleNameConverter}}" />
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+            <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="RadioButton">
+                        <StackPanel Orientation="Horizontal" Background="Transparent">
+                            <Border x:Name="Ring"
+                                    Width="16" Height="16"
+                                    Background="{DynamicResource PanelBackgroundBrush}"
+                                    BorderBrush="{DynamicResource BorderEmphasisBrush}"
+                                    BorderThickness="1.4"
+                                    CornerRadius="8"
+                                    VerticalAlignment="Center">
+                                <Ellipse x:Name="Dot"
+                                         Width="8" Height="8"
+                                         Fill="{DynamicResource AccentBrush}"
+                                         HorizontalAlignment="Center"
+                                         VerticalAlignment="Center"
+                                         Opacity="0" />
+                            </Border>
+                            <ContentPresenter Margin="7,0,0,0"
+                                              VerticalAlignment="Center"
+                                              RecognizesAccessKey="True" />
+                        </StackPanel>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Ring" Property="BorderBrush" Value="{DynamicResource FocusBorderBrush}" />
+                            </Trigger>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="Ring" Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+                                <Setter TargetName="Dot" Property="Opacity" Value="1" />
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.45" />
+                                <Setter Property="Cursor" Value="Arrow" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
         <!--  ─────────── ListBoxItem ───────────────────────────────────── -->
 
         <Style TargetType="ListBoxItem">
