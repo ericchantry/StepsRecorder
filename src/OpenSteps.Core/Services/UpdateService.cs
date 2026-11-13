@@ -1,3 +1,4 @@
+using System.IO.Compression;
 using OpenSteps.Core.Models;
 
 namespace OpenSteps.Core.Services;
@@ -127,7 +128,7 @@ public sealed class UpdateService
     {
         try
         {
-            using var archive = System.IO.Compression.ZipFile.OpenRead(packagePath);
+            using var archive = ZipFile.OpenRead(packagePath);
             var entry = archive.Entries.FirstOrDefault(candidate =>
                 string.Equals(
                     Path.GetFileName(candidate.FullName),
